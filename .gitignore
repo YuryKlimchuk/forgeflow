@@ -1,0 +1,30 @@
+# --- IntelliJ IDEA ---
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# --- Maven ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- Java ---
+*.class
+
+# --- Логи ---
+logs/
+*.log
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Локальные конфиги и секреты ---
+.env
+.env.*
+!.env.example
+application-local.yaml
+application-local.yml
+*.p12
+*.jks
