@@ -1,7 +1,10 @@
 package com.forgeflow.catalog.domain.vzk;
 
 import com.forgeflow.catalog.api.VzkId;
+import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
+import org.apache.commons.lang3.StringUtils;
 import org.jmolecules.ddd.annotation.Entity;
 import org.jmolecules.ddd.annotation.Identity;
 
@@ -11,15 +14,67 @@ public class Vzk {
     @Identity
     private final VzkId id;
 
-    private Vzk(VzkId id) {
-        this.id = id;
+    private final String number;
+    private final String name;
+    private final UUID organizationId;
+    private final Instant createdAt;
+    private Instant updatedAt;
+    private Instant deletedAt;
+
+    private Vzk(VzkId id, String number, String name, UUID organizationId, Instant createdAt, Instant updatedAt) {
+        this.id = Objects.requireNonNull(id, "id must not be null");
+        this.number = requireNotBlank(number, "number");
+        this.name = requireNotBlank(name, "name");
+        this.organizationId = Objects.requireNonNull(organizationId, "organizationId must not be null");
+        this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
+        this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }
 
-    public static Vzk create(VzkId id) {
-        return new Vzk(Objects.requireNonNull(id, "id must not be null"));
+    public static Vzk create(VzkId id, String number, String name, UUID organizationId, Instant createdAt, Instant updatedAt) {
+        return new Vzk(id, number, name, organizationId, createdAt, updatedAt);
+    }
+
+    public void markDeleted() {
+        if (deletedAt != null) {
+            return;
+        }
+        Instant now = Instant.now();
+        this.deletedAt = now;
+        this.updatedAt = now;
+    }
+
+    private static String requireNotBlank(String value, String field) {
+        if (StringUtils.isBlank(value)) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
+        return value;
     }
 
     public VzkId getId() {
         return id;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public UUID getOrganizationId() {
+        return organizationId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
     }
 }
