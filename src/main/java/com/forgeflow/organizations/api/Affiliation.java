@@ -1,5 +1,7 @@
 package com.forgeflow.organizations.api;
 
+import com.forgeflow.shared.api.OrganizationId;
+
 /**
  * Принадлежность текущего пользователя: владелец организации, участник
  * организации либо отсутствие организации.

@@ -1,10 +1,10 @@
-package com.forgeflow.organizations.api;
+package com.forgeflow.shared.api;
 
 import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Типизированный идентификатор организации.
+ * Общий типизированный идентификатор организации (tenant).
  */
 public record OrganizationId(UUID value) {
 

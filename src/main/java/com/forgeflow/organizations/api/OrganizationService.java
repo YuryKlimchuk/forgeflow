@@ -1,5 +1,6 @@
 package com.forgeflow.organizations.api;
 
+import com.forgeflow.shared.api.OrganizationId;
 import java.util.List;
 
 /**
@@ -45,6 +46,12 @@ public interface OrganizationService {
      * Удаляет участника организации; доступно только владельцу.
      */
     void removeMember(OrganizationId organizationId, UserId userId);
+
+    /**
+     * Возвращает принадлежность указанного пользователя: владелец, участник
+     * либо без организации.
+     */
+    Affiliation getAffiliation(UserId userId);
 
     /**
      * Возвращает принадлежность текущего пользователя.

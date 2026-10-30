@@ -20,21 +20,29 @@
 - **THEN** для каждого названного модуля обнаруживается ровно одна корневая декларация `@ApplicationModule`
 
 ### Requirement: Публичные API модулей
-Каждый модуль SHALL предоставлять межмодульный доступ только через свои пакеты `api`, объявленные как именованные интерфейсы Spring Modulith.
+Межмодульный доступ SHALL выполняться только через `api`-пакет целевого модуля; зависимость `organizations -> shared` SHALL использовать `shared.api` как единственную точку доступа к `shared`.
 
 #### Scenario: Доступ через API
-- **WHEN** один модуль обращается к типу другого модуля
-- **THEN** обращение направлено в `api`-пакет другого модуля, а обращения к его `application`, `domain` и `infrastructure` отсутствуют
+- **WHEN** `organizations` обращается к типу `shared`
+- **THEN** обращение направлено в `shared.api`, а обращения к `shared.application`, `shared.domain` и `shared.infrastructure` отсутствуют
 
 ### Requirement: Разрешённые зависимости модулей
-Модульные декларации SHALL разрешать только зависимости, соответствующие предметным связям: `adminpanel` — `organizations`; `technology` — `catalog` и `directories`; `specifications` — `catalog` и `directories`; `catalog` — `directories`; `security` — `organizations`; `organizations`, `directories` и `shared` — без зависимостей; прочие зависимости SHALL быть запрещены.
+Модульные декларации SHALL разрешать только зависимости, соответствующие предметным связям: `adminpanel` — `organizations`; `technology` — `catalog` и `directories`; `specifications` — `catalog` и `directories`; `catalog` — `directories` и `shared`; `security` — `organizations` и `shared`; `organizations` — `shared`; `shared` и `directories` — без зависимостей; прочие зависимости SHALL быть запрещены.
 
 #### Scenario: Проверка направленного графа
 - **WHEN** выполняется верификация модели модулей
-- **THEN** перечисленные зависимости проходят проверку, а обратные связи и зависимости на неперечисленные модули отклоняются
+- **THEN** зависимости `organizations -> shared`, `security -> organizations`, `security -> shared`, `catalog -> directories` и `catalog -> shared` проходят проверку, а обратные связи и неперечисленные зависимости отклоняются
+
+#### Scenario: Доступ organizations к shared
+- **WHEN** модуль `organizations` использует `OrganizationId`
+- **THEN** он обращается к `shared.api.OrganizationId`, а не к пакету `shared.application`, `shared.domain` или `shared.infrastructure`
+
+#### Scenario: Независимые общие модули
+- **WHEN** модули `shared` и `directories` анализируются на межмодульные зависимости
+- **THEN** каждый из них не зависит от `organizations`, `security`, `catalog` или любого другого бизнес-модуля
 
 ### Requirement: Отсутствие циклов модулей
-Граф зависимостей восьми модулей SHALL быть ацикличным.
+Граф зависимостей восьми модулей SHALL оставаться ацикличным после добавления `organizations -> shared`, `security -> shared` и `catalog -> shared`.
 
 #### Scenario: Проверка отсутствия циклов
 - **WHEN** выполняется архитектурная проверка Spring Modulith

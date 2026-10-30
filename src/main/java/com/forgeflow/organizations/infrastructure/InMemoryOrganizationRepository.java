@@ -1,6 +1,6 @@
 package com.forgeflow.organizations.infrastructure;
 
-import com.forgeflow.organizations.api.OrganizationId;
+import com.forgeflow.shared.api.OrganizationId;
 import com.forgeflow.organizations.api.UserId;
 import com.forgeflow.organizations.domain.Organization;
 import com.forgeflow.organizations.domain.OrganizationRepository;

@@ -3,7 +3,7 @@ package com.forgeflow.organizations.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.forgeflow.organizations.api.OrganizationId;
+import com.forgeflow.shared.api.OrganizationId;
 import com.forgeflow.organizations.api.UserId;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;

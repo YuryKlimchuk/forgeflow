@@ -1,7 +1,7 @@
 package com.forgeflow.organizations.domain;
 
 import com.forgeflow.organizations.api.OwnerId;
-import com.forgeflow.organizations.api.OrganizationId;
+import com.forgeflow.shared.api.OrganizationId;
 import com.forgeflow.organizations.api.UserId;
 import java.util.Objects;
 import org.jmolecules.ddd.annotation.Entity;

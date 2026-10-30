@@ -1,7 +1,7 @@
 package com.forgeflow.organizations.application;
 
 import com.forgeflow.organizations.api.Affiliation;
-import com.forgeflow.organizations.api.OrganizationId;
+import com.forgeflow.shared.api.OrganizationId;
 import com.forgeflow.organizations.api.OrganizationService;
 import com.forgeflow.organizations.api.OrganizationView;
 import com.forgeflow.organizations.api.OwnerId;
@@ -135,17 +135,21 @@ public class OrganizationApplicationService implements OrganizationService {
     }
 
     @Override
-    public Affiliation getAffiliation() {
-        UserId subject = subjectProvider.currentSubject();
-        Owner owner = ownerRepository.findByUserId(subject).orElse(null);
+    public Affiliation getAffiliation(UserId userId) {
+        Owner owner = ownerRepository.findByUserId(userId).orElse(null);
         if (owner != null) {
             return owner.getOrganizationId() != null
                     ? new Affiliation.OwnerOf(owner.getOrganizationId())
                     : new Affiliation.None();
         }
-        return organizationRepository.findByMemberUserId(subject)
+        return organizationRepository.findByMemberUserId(userId)
                 .<Affiliation>map(org -> new Affiliation.MemberOf(org.getId()))
                 .orElseGet(Affiliation.None::new);
+    }
+
+    @Override
+    public Affiliation getAffiliation() {
+        return getAffiliation(subjectProvider.currentSubject());
     }
 
     private Organization requireOrganization(OrganizationId organizationId) {

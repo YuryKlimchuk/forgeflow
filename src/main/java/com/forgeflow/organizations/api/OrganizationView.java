@@ -1,5 +1,6 @@
 package com.forgeflow.organizations.api;
 
+import com.forgeflow.shared.api.OrganizationId;
 import java.time.Instant;
 
 /**

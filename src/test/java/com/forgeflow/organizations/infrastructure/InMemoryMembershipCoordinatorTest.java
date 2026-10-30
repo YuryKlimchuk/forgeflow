@@ -2,7 +2,7 @@ package com.forgeflow.organizations.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.forgeflow.organizations.api.OrganizationId;
+import com.forgeflow.shared.api.OrganizationId;
 import com.forgeflow.organizations.api.OwnerId;
 import com.forgeflow.organizations.api.UserId;
 import com.forgeflow.organizations.application.UserAlreadyOccupiedException;
