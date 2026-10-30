@@ -1,0 +1,17 @@
+package com.forgeflow.organizations.domain;
+
+import com.forgeflow.organizations.api.OrganizationId;
+import com.forgeflow.organizations.api.UserId;
+import java.util.Optional;
+
+/**
+ * Driven port хранения организаций.
+ */
+public interface OrganizationRepository {
+
+    void save(Organization organization);
+
+    Optional<Organization> findById(OrganizationId id);
+
+    Optional<Organization> findByMemberUserId(UserId userId);
+}
