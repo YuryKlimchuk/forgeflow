@@ -64,6 +64,22 @@ async function toJsonOrThrow<T>(response: Response): Promise<T> {
 
 export type CatalogItemType = "PART" | "ASSEMBLY" | "BUY" | "STANDART" | "VZK";
 
+export const CATALOG_ITEM_TYPES: CatalogItemType[] = [
+  "PART",
+  "ASSEMBLY",
+  "BUY",
+  "STANDART",
+  "VZK",
+];
+
+export const CATALOG_ITEM_TYPE_ENDPOINTS: Record<CatalogItemType, string> = {
+  PART: "/api/v1/parts",
+  ASSEMBLY: "/api/v1/assemblies",
+  BUY: "/api/v1/buys",
+  STANDART: "/api/v1/standarts",
+  VZK: "/api/v1/vzks",
+};
+
 export interface CatalogItemReference {
   type: CatalogItemType;
   id: string;
@@ -175,6 +191,16 @@ export const catalogApi = {
     return toJsonOrThrow<void>(await fetch(`${endpoint}/${id}`, { method: "DELETE" }));
   },
 };
+
+export async function loadCatalogIndex(): Promise<Record<CatalogItemType, CatalogEntry[]>> {
+  const pairs = await Promise.all(
+    CATALOG_ITEM_TYPES.map(async (type) => {
+      const list = await catalogApi.list(CATALOG_ITEM_TYPE_ENDPOINTS[type]);
+      return [type, list] as const;
+    }),
+  );
+  return Object.fromEntries(pairs) as Record<CatalogItemType, CatalogEntry[]>;
+}
 
 export function humanizeError(error: unknown): string {
   if (error instanceof ApiClientError) {

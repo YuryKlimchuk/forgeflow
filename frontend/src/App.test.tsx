@@ -214,4 +214,53 @@ describe("App", () => {
     });
     expect(await screen.findByText("Спецификация")).toBeInTheDocument();
   });
+
+  it("фильтрует список по номеру или названию", async () => {
+    const A = {
+      id: { value: "1" },
+      number: "P-100",
+      name: "Втулка",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    const B = {
+      id: { value: "2" },
+      number: "Д-0002",
+      name: "Вал",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, [A, B]));
+
+    render(<App />);
+    await screen.findByText("P-100");
+
+    await userEvent.type(screen.getByLabelText("Поиск каталога"), "p-1");
+    expect(screen.getByText("P-100")).toBeInTheDocument();
+    expect(screen.queryByText("Д-0002")).not.toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Поиск каталога"));
+    await userEvent.type(screen.getByLabelText("Поиск каталога"), "вал");
+    expect(screen.queryByText("P-100")).not.toBeInTheDocument();
+    expect(screen.getByText("Д-0002")).toBeInTheDocument();
+  });
+
+  it("показывает сообщение при отсутствии совпадений", async () => {
+    const A = {
+      id: { value: "1" },
+      number: "P-100",
+      name: "Втулка",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, [A]));
+
+    render(<App />);
+    await screen.findByText("P-100");
+
+    await userEvent.type(screen.getByLabelText("Поиск каталога"), "zzz");
+
+    expect(await screen.findByText("Ничего не найдено.")).toBeInTheDocument();
+    expect(screen.queryByText("P-100")).not.toBeInTheDocument();
+  });
 });

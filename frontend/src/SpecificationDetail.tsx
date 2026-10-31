@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   humanizeSpecificationError,
+  loadCatalogIndex,
   specificationApi,
+  type CatalogEntry,
   type CatalogItemReference,
   type CatalogItemType,
   type FlatBomItem,
@@ -15,13 +17,25 @@ interface Props {
 
 type Status = "loading" | "ready" | "error";
 
+const EMPTY_INDEX: Record<CatalogItemType, CatalogEntry[]> = {
+  PART: [],
+  ASSEMBLY: [],
+  BUY: [],
+  STANDART: [],
+  VZK: [],
+};
+
 export default function SpecificationDetail({ assemblyId, onBack }: Props) {
   const [rows, setRows] = useState<SpecificationRow[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
 
+  const [catalogByType, setCatalogByType] =
+    useState<Record<CatalogItemType, CatalogEntry[]>>(EMPTY_INDEX);
+
   const [itemType, setItemType] = useState<CatalogItemType>("PART");
-  const [itemId, setItemId] = useState("");
+  const [selectedItem, setSelectedItem] = useState<CatalogEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [quantity, setQuantity] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,16 +66,49 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    let cancelled = false;
+    loadCatalogIndex()
+      .then((index) => {
+        if (!cancelled) setCatalogByType(index);
+      })
+      .catch(() => {
+        // остаёмся с пустым индексом — строки покажут «Элемент не найден»
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const resolve = (item: CatalogItemReference): CatalogEntry | undefined => {
+    return (catalogByType[item.type] ?? []).find((entry) => entry.id.value === item.id);
+  };
+
+  const query = searchQuery.trim().toLowerCase();
+  const filteredOptions = (catalogByType[itemType] ?? []).filter(
+    (entry) =>
+      !query ||
+      entry.number.toLowerCase().includes(query) ||
+      entry.name.toLowerCase().includes(query),
+  );
+
+  const handleTypeChange = (value: CatalogItemType) => {
+    setItemType(value);
+    setSelectedItem(null);
+    setSearchQuery("");
+  };
+
   const handleAdd = async (event: FormEvent) => {
     event.preventDefault();
-    if (!itemId.trim() || !quantity.trim()) return;
-    const item: CatalogItemReference = { type: itemType, id: itemId.trim() };
+    if (!selectedItem || !quantity.trim()) return;
+    const item: CatalogItemReference = { type: itemType, id: selectedItem.id.value };
     setSubmitting(true);
     setError(null);
     try {
       await specificationApi.addRow(assemblyId, item, Number(quantity));
-      setItemId("");
+      setSelectedItem(null);
       setQuantity("");
+      setSearchQuery("");
       await load();
     } catch (e) {
       setError(humanizeSpecificationError(e));
@@ -139,47 +186,50 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
             <table className="catalog-table">
               <thead>
                 <tr>
-                  <th>Тип</th>
-                  <th>ID</th>
+                  <th>Номер</th>
+                  <th>Название</th>
                   <th>Количество</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={`${row.item.type}:${row.item.id}`}>
-                    <td>{row.item.type}</td>
-                    <td>{row.item.id}</td>
-                    <td>
-                      {editingItemId === row.item.id ? (
-                        <input
-                          value={draftQuantity}
-                          onChange={(e) => setDraftQuantity(e.target.value)}
-                          aria-label="Новое количество"
-                        />
-                      ) : (
-                        row.quantity
-                      )}
-                    </td>
-                    <td className="actions">
-                      {editingItemId === row.item.id ? (
-                        <button onClick={() => void handleChangeQuantity(row.item)}>
-                          Сохранить количество
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setEditingItemId(row.item.id);
-                            setDraftQuantity(String(row.quantity));
-                          }}
-                        >
-                          Изменить
-                        </button>
-                      )}
-                      <button onClick={() => void handleRemove(row.item)}>Удалить строку</button>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((row) => {
+                  const entry = resolve(row.item);
+                  return (
+                    <tr key={`${row.item.type}:${row.item.id}`}>
+                      <td>{entry?.number ?? "Элемент не найден"}</td>
+                      <td>{entry?.name ?? ""}</td>
+                      <td>
+                        {editingItemId === row.item.id ? (
+                          <input
+                            value={draftQuantity}
+                            onChange={(e) => setDraftQuantity(e.target.value)}
+                            aria-label="Новое количество"
+                          />
+                        ) : (
+                          row.quantity
+                        )}
+                      </td>
+                      <td className="actions">
+                        {editingItemId === row.item.id ? (
+                          <button onClick={() => void handleChangeQuantity(row.item)}>
+                            Сохранить количество
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingItemId(row.item.id);
+                              setDraftQuantity(String(row.quantity));
+                            }}
+                          >
+                            Изменить
+                          </button>
+                        )}
+                        <button onClick={() => void handleRemove(row.item)}>Удалить строку</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -187,7 +237,7 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
           <form className="create-form" onSubmit={handleAdd}>
             <select
               value={itemType}
-              onChange={(e) => setItemType(e.target.value as CatalogItemType)}
+              onChange={(e) => handleTypeChange(e.target.value as CatalogItemType)}
               aria-label="Тип элемента"
             >
               <option value="PART">PART</option>
@@ -196,22 +246,54 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
               <option value="STANDART">STANDART</option>
               <option value="VZK">VZK</option>
             </select>
-            <input
-              value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
-              placeholder="ID элемента"
-              aria-label="ID элемента"
-            />
+            {selectedItem ? (
+              <span className="selected-element">
+                {selectedItem.number} — {selectedItem.name}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedItem(null);
+                    setSearchQuery("");
+                  }}
+                >
+                  Сменить
+                </button>
+              </span>
+            ) : (
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск элемента"
+                aria-label="Поиск элемента"
+              />
+            )}
             <input
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="Количество"
               aria-label="Количество"
             />
-            <button type="submit" disabled={submitting}>
+            <button type="submit" disabled={submitting || !selectedItem}>
               {submitting ? "Создание…" : "Добавить строку"}
             </button>
           </form>
+          {!selectedItem && (
+            <ul className="element-options" aria-label="Варианты элемента">
+              {filteredOptions.map((entry) => (
+                <li key={`${itemType}:${entry.id.value}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedItem(entry);
+                      setSearchQuery("");
+                    }}
+                  >
+                    {entry.number} — {entry.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <form className="create-form" onSubmit={handleCopy}>
             <input

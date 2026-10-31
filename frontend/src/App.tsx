@@ -22,9 +22,19 @@ export default function App() {
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const activeType =
     CATALOG_TYPES.find((type) => type.key === activeKey) ?? CATALOG_TYPES[0];
+
+  const filteredEntries = entries.filter((entry) => {
+    const query = searchQuery.trim().toLowerCase();
+    return (
+      !query ||
+      entry.number.toLowerCase().includes(query) ||
+      entry.name.toLowerCase().includes(query)
+    );
+  });
 
   const load = useCallback(async (type: CatalogTypeConfig) => {
     setStatus("loading");
@@ -87,7 +97,10 @@ export default function App() {
                 <button
                   key={type.key}
                   className={type.key === activeKey ? "tab tab-active" : "tab"}
-                  onClick={() => setActiveKey(type.key)}
+                  onClick={() => {
+                    setActiveKey(type.key);
+                    setSearchQuery("");
+                  }}
                 >
                   {type.label}
                 </button>
@@ -95,9 +108,22 @@ export default function App() {
             </nav>
             {error && <div className="banner banner-error">{error}</div>}
             <CreateCatalogEntryForm onCreate={handleCreate} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск по номеру или названию"
+              aria-label="Поиск каталога"
+              className="catalog-search"
+            />
             {status === "loading" && <p className="muted">Загрузка…</p>}
-            {status === "ready" && (
-              <CatalogTable entries={entries} onSelect={openDetail} />
+            {status === "ready" && filteredEntries.length > 0 && (
+              <CatalogTable entries={filteredEntries} onSelect={openDetail} />
+            )}
+            {status === "ready" && entries.length === 0 && (
+              <p className="muted">Пока нет записей. Создайте первую.</p>
+            )}
+            {status === "ready" && entries.length > 0 && filteredEntries.length === 0 && (
+              <p className="muted">Ничего не найдено.</p>
             )}
             {status === "error" && !error && (
               <p className="muted">Не удалось загрузить список.</p>

@@ -114,6 +114,43 @@ button:disabled {
   background: var(--surface-light);
 }
 
+.catalog-search {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.element-options {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.element-options button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+
+.element-options button:hover {
+  background: var(--surface-light);
+}
+
+.selected-element {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .actions {
   display: flex;
   gap: 8px;
