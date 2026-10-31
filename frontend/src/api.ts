@@ -62,6 +62,74 @@ async function toJsonOrThrow<T>(response: Response): Promise<T> {
   throw new ApiClientError(response.status, body.error, body.message);
 }
 
+export type CatalogItemType = "PART" | "ASSEMBLY" | "BUY" | "STANDART" | "VZK";
+
+export interface CatalogItemReference {
+  type: CatalogItemType;
+  id: string;
+}
+
+export interface SpecificationRow {
+  item: CatalogItemReference;
+  quantity: number;
+}
+
+export const specificationApi = {
+  async list(assemblyId: string): Promise<SpecificationRow[]> {
+    return toJsonOrThrow<SpecificationRow[]>(
+      await fetch(`/api/v1/specifications/${assemblyId}/rows`),
+    );
+  },
+
+  async addRow(
+    assemblyId: string,
+    item: CatalogItemReference,
+    quantity: number,
+  ): Promise<SpecificationRow> {
+    return toJsonOrThrow<SpecificationRow>(
+      await fetch(`/api/v1/specifications/${assemblyId}/rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item, quantity }),
+      }),
+    );
+  },
+
+  async changeQuantity(
+    assemblyId: string,
+    item: CatalogItemReference,
+    quantity: number,
+  ): Promise<void> {
+    return toJsonOrThrow<void>(
+      await fetch(`/api/v1/specifications/${assemblyId}/rows`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item, quantity }),
+      }),
+    );
+  },
+
+  async removeRow(assemblyId: string, item: CatalogItemReference): Promise<void> {
+    return toJsonOrThrow<void>(
+      await fetch(`/api/v1/specifications/${assemblyId}/rows`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item }),
+      }),
+    );
+  },
+
+  async copy(sourceAssemblyId: string, number: string, name: string): Promise<CatalogEntry> {
+    return toJsonOrThrow<CatalogEntry>(
+      await fetch(`/api/v1/specifications/${sourceAssemblyId}/copy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ number, name }),
+      }),
+    );
+  },
+};
+
 export const catalogApi = {
   async list(endpoint: string): Promise<CatalogEntry[]> {
     return toJsonOrThrow<CatalogEntry[]>(await fetch(endpoint));
@@ -97,6 +165,22 @@ export function humanizeError(error: unknown): string {
     switch (error.code) {
       case "duplicate":
         return "Номер уже занят";
+      case "not_found":
+        return "Запись не найдена";
+      case "bad_request":
+        return "Некорректный запрос";
+      default:
+        return error.message;
+    }
+  }
+  return "Что-то пошло не так";
+}
+
+export function humanizeSpecificationError(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    switch (error.code) {
+      case "duplicate":
+        return "Элемент уже присутствует в спецификации";
       case "not_found":
         return "Запись не найдена";
       case "bad_request":

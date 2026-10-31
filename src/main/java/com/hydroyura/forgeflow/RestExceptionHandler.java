@@ -15,6 +15,9 @@ import com.hydroyura.forgeflow.organizations.application.OrganizationAccessDenie
 import com.hydroyura.forgeflow.organizations.application.OrganizationNotFoundException;
 import com.hydroyura.forgeflow.organizations.application.OrganizationsException;
 import com.hydroyura.forgeflow.organizations.application.OwnerRequiredException;
+import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
+import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
+import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -77,5 +80,23 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public Map<String, String> handleOrganizationForbidden(OrganizationsException e) {
         return Map.of("error", "forbidden", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(RowNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleRowNotFound(RowNotFoundException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateItemException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleDuplicateItem(DuplicateItemException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(SelfReferenceException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleSelfReference(SelfReferenceException e) {
+        return Map.of("error", "bad_request", "message", String.valueOf(e.getMessage()));
     }
 }

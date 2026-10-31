@@ -126,3 +126,14 @@ button:disabled {
 .muted {
   color: var(--muted);
 }
+
+.specification-panel {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.specification-panel h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}

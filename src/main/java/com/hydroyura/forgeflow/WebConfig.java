@@ -24,6 +24,10 @@ import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryBuyRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryPartRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryStandartRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryVzkRepository;
+import com.hydroyura.forgeflow.specifications.application.SpecificationApplicationService;
+import com.hydroyura.forgeflow.specifications.application.SpecificationMapper;
+import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
 import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
 import com.hydroyura.forgeflow.organizations.application.OrganizationApplicationService;
@@ -237,6 +241,27 @@ public class WebConfig {
             VzkMapper vzkMapper,
             java.time.Clock systemClock) {
         return new VzkApplicationService(vzkRepository, organizationContext, settingsProvider, vzkMapper, systemClock);
+    }
+
+    // --- Specifications ---
+
+    @Bean
+    public SpecificationRepository specificationRepository() {
+        return new InMemorySpecificationRepository();
+    }
+
+    @Bean
+    public SpecificationMapper specificationMapper() {
+        return new SpecificationMapper();
+    }
+
+    @Bean
+    public SpecificationApplicationService specificationService(
+            SpecificationRepository specificationRepository,
+            OrganizationContext organizationContext,
+            AssemblyService assemblyService,
+            SpecificationMapper specificationMapper) {
+        return new SpecificationApplicationService(specificationRepository, organizationContext, assemblyService, specificationMapper);
     }
 
     // --- Web ---

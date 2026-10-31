@@ -8,6 +8,7 @@ import {
 } from "./api";
 import CatalogTable from "./CatalogTable";
 import CreateCatalogEntryForm from "./CreateCatalogEntryForm";
+import SpecificationPanel from "./SpecificationPanel";
 import "./App.css";
 
 type Status = "loading" | "ready" | "error";
@@ -17,6 +18,7 @@ export default function App() {
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [showSpec, setShowSpec] = useState(false);
 
   const activeType =
     CATALOG_TYPES.find((type) => type.key === activeKey) ?? CATALOG_TYPES[0];
@@ -93,6 +95,11 @@ export default function App() {
           <CatalogTable entries={entries} onRename={handleRename} onDelete={handleDelete} />
         )}
         {status === "error" && !error && <p className="muted">Не удалось загрузить список.</p>}
+
+        <button onClick={() => setShowSpec((value) => !value)}>
+          {showSpec ? "Скрыть спецификацию" : "Спецификация"}
+        </button>
+        {showSpec && <SpecificationPanel />}
       </main>
     </div>
   );
