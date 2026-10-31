@@ -1,0 +1,108 @@
+:root {
+  --accent: #474a51; /* RAL 7024 — графитовый */
+  --surface: #b8b4a6; /* RAL 7032 — галечный */
+  --surface-light: #e8e6df;
+  --text: #2b2d30;
+  --muted: #6b6f76;
+  --border: #d5d2c8;
+  --danger: #a33;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--surface-light);
+}
+
+.app-header {
+  background: var(--accent);
+  color: #fff;
+  padding: 16px 24px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.app-main {
+  max-width: 960px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+
+.create-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.create-form input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+button {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--surface);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.parts-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.parts-table th,
+.parts-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.parts-table th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.banner {
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.banner-error {
+  background: #fbe9e9;
+  color: var(--danger);
+  border: 1px solid #e5b4b4;
+}
+
+.muted {
+  color: var(--muted);
+}
