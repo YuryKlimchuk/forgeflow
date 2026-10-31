@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import SpecificationPanel from "./SpecificationPanel";
+import SpecificationDetail from "./SpecificationDetail";
 
 const ROW_ID = "11111111-1111-1111-1111-111111111111";
 const ROW = { item: { type: "PART", id: ROW_ID }, quantity: 3 };
@@ -15,21 +15,15 @@ function jsonResponse(status: number, body: unknown): Response {
   } as Response;
 }
 
-async function openSpec() {
-  await userEvent.type(screen.getByLabelText("ID сборки"), "A-1");
-  await userEvent.click(screen.getByRole("button", { name: "Открыть" }));
-}
-
-describe("SpecificationPanel", () => {
+describe("SpecificationDetail", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("открывает спецификацию и отображает строки", async () => {
+  it("отображает строки спецификации", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, [ROW]));
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
 
     expect(await screen.findByText(ROW_ID)).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
@@ -38,8 +32,7 @@ describe("SpecificationPanel", () => {
   it("показывает пустую спецификацию", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
 
     expect(await screen.findByText("Спецификация пуста")).toBeInTheDocument();
   });
@@ -51,8 +44,7 @@ describe("SpecificationPanel", () => {
       .mockResolvedValueOnce(jsonResponse(201, ROW))
       .mockResolvedValueOnce(jsonResponse(200, [ROW]));
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
     await screen.findByText("Спецификация пуста");
 
     await userEvent.type(screen.getByLabelText("ID элемента"), ROW_ID);
@@ -74,8 +66,7 @@ describe("SpecificationPanel", () => {
       .mockResolvedValueOnce(jsonResponse(204, undefined))
       .mockResolvedValueOnce(jsonResponse(200, [{ ...ROW, quantity: 9 }]));
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
     await screen.findByText(ROW_ID);
 
     await userEvent.click(screen.getByRole("button", { name: "Изменить" }));
@@ -98,8 +89,7 @@ describe("SpecificationPanel", () => {
       .mockResolvedValueOnce(jsonResponse(204, undefined))
       .mockResolvedValueOnce(jsonResponse(200, []));
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
     await screen.findByText(ROW_ID);
 
     await userEvent.click(screen.getByRole("button", { name: "Удалить строку" }));
@@ -126,8 +116,7 @@ describe("SpecificationPanel", () => {
         }),
       );
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
     await screen.findByText("Спецификация пуста");
 
     await userEvent.type(screen.getByLabelText("Номер сборки"), "B-1");
@@ -143,19 +132,15 @@ describe("SpecificationPanel", () => {
     expect(await screen.findByText(/Создана сборка: B-1/)).toBeInTheDocument();
   });
 
-  it("показывает ошибку дубликата (409)", async () => {
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse(200, []))
-      .mockResolvedValueOnce(jsonResponse(409, { error: "duplicate", message: "..." }));
+  it("вызывает onBack", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
+    const onBack = vi.fn();
 
-    render(<SpecificationPanel />);
-    await openSpec();
+    render(<SpecificationDetail assemblyId="A-1" onBack={onBack} />);
     await screen.findByText("Спецификация пуста");
 
-    await userEvent.type(screen.getByLabelText("ID элемента"), ROW_ID);
-    await userEvent.type(screen.getByLabelText("Количество"), "3");
-    await userEvent.click(screen.getByRole("button", { name: "Добавить строку" }));
+    await userEvent.click(screen.getByRole("button", { name: "Назад" }));
 
-    expect(await screen.findByText(/Элемент уже присутствует/)).toBeInTheDocument();
+    expect(onBack).toHaveBeenCalled();
   });
 });

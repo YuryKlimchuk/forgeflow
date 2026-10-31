@@ -131,6 +131,10 @@ export const specificationApi = {
 };
 
 export const catalogApi = {
+  async get(endpoint: string, id: string): Promise<CatalogEntry> {
+    return toJsonOrThrow<CatalogEntry>(await fetch(`${endpoint}/${id}`));
+  },
+
   async list(endpoint: string): Promise<CatalogEntry[]> {
     return toJsonOrThrow<CatalogEntry[]>(await fetch(endpoint));
   },

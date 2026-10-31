@@ -7,18 +7,21 @@ import {
   type CatalogTypeConfig,
 } from "./api";
 import CatalogTable from "./CatalogTable";
+import CatalogDetail from "./CatalogDetail";
 import CreateCatalogEntryForm from "./CreateCatalogEntryForm";
-import SpecificationPanel from "./SpecificationPanel";
+import SpecificationDetail from "./SpecificationDetail";
 import "./App.css";
 
 type Status = "loading" | "ready" | "error";
+type View = "list" | "catalog-detail" | "spec-detail";
 
 export default function App() {
   const [activeKey, setActiveKey] = useState(CATALOG_TYPES[0].key);
+  const [view, setView] = useState<View>("list");
+  const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null);
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [showSpec, setShowSpec] = useState(false);
 
   const activeType =
     CATALOG_TYPES.find((type) => type.key === activeKey) ?? CATALOG_TYPES[0];
@@ -36,8 +39,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void load(activeType);
-  }, [load, activeType]);
+    if (view === "list") {
+      void load(activeType);
+    }
+  }, [load, activeType, view]);
 
   const handleCreate = async (request: { number: string; name: string }): Promise<boolean> => {
     setError(null);
@@ -51,24 +56,22 @@ export default function App() {
     }
   };
 
-  const handleRename = async (id: string, name: string) => {
-    setError(null);
-    try {
-      await catalogApi.rename(activeType.endpoint, id, name);
-      await load(activeType);
-    } catch (e) {
-      setError(humanizeError(e));
-    }
+  const openDetail = (entry: CatalogEntry) => {
+    setSelectedEntry(entry);
+    setView("catalog-detail");
   };
 
-  const handleDelete = async (id: string) => {
-    setError(null);
-    try {
-      await catalogApi.remove(activeType.endpoint, id);
-      await load(activeType);
-    } catch (e) {
-      setError(humanizeError(e));
-    }
+  const backToList = () => {
+    setSelectedEntry(null);
+    setView("list");
+  };
+
+  const openSpec = () => {
+    setView("spec-detail");
+  };
+
+  const backToDetail = () => {
+    setView("catalog-detail");
   };
 
   return (
@@ -77,29 +80,43 @@ export default function App() {
         <h1>ForgeFlow — Каталог</h1>
       </header>
       <main className="app-main">
-        <nav className="tabs" aria-label="Типы каталога">
-          {CATALOG_TYPES.map((type) => (
-            <button
-              key={type.key}
-              className={type.key === activeKey ? "tab tab-active" : "tab"}
-              onClick={() => setActiveKey(type.key)}
-            >
-              {type.label}
-            </button>
-          ))}
-        </nav>
-        {error && <div className="banner banner-error">{error}</div>}
-        <CreateCatalogEntryForm onCreate={handleCreate} />
-        {status === "loading" && <p className="muted">Загрузка…</p>}
-        {status === "ready" && (
-          <CatalogTable entries={entries} onRename={handleRename} onDelete={handleDelete} />
+        {view === "list" && (
+          <>
+            <nav className="tabs" aria-label="Типы каталога">
+              {CATALOG_TYPES.map((type) => (
+                <button
+                  key={type.key}
+                  className={type.key === activeKey ? "tab tab-active" : "tab"}
+                  onClick={() => setActiveKey(type.key)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </nav>
+            {error && <div className="banner banner-error">{error}</div>}
+            <CreateCatalogEntryForm onCreate={handleCreate} />
+            {status === "loading" && <p className="muted">Загрузка…</p>}
+            {status === "ready" && (
+              <CatalogTable entries={entries} onSelect={openDetail} />
+            )}
+            {status === "error" && !error && (
+              <p className="muted">Не удалось загрузить список.</p>
+            )}
+          </>
         )}
-        {status === "error" && !error && <p className="muted">Не удалось загрузить список.</p>}
 
-        <button onClick={() => setShowSpec((value) => !value)}>
-          {showSpec ? "Скрыть спецификацию" : "Спецификация"}
-        </button>
-        {showSpec && <SpecificationPanel />}
+        {view === "catalog-detail" && selectedEntry && (
+          <CatalogDetail
+            type={activeType}
+            id={selectedEntry.id.value}
+            onBack={backToList}
+            onOpenSpec={activeType.key === "assemblies" ? openSpec : undefined}
+          />
+        )}
+
+        {view === "spec-detail" && selectedEntry && (
+          <SpecificationDetail assemblyId={selectedEntry.id.value} onBack={backToDetail} />
+        )}
       </main>
     </div>
   );

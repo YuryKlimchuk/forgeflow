@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   humanizeSpecificationError,
   specificationApi,
@@ -7,13 +7,16 @@ import {
   type SpecificationRow,
 } from "./api";
 
-type Status = "idle" | "loading" | "ready" | "error";
+interface Props {
+  assemblyId: string;
+  onBack: () => void;
+}
 
-export default function SpecificationPanel() {
-  const [assemblyId, setAssemblyId] = useState("");
-  const [openedId, setOpenedId] = useState<string | null>(null);
+type Status = "loading" | "ready" | "error";
+
+export default function SpecificationDetail({ assemblyId, onBack }: Props) {
   const [rows, setRows] = useState<SpecificationRow[]>([]);
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
 
   const [itemType, setItemType] = useState<CatalogItemType>("PART");
@@ -28,37 +31,33 @@ export default function SpecificationPanel() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [draftQuantity, setDraftQuantity] = useState("");
 
-  const load = async (id: string) => {
+  const load = useCallback(async () => {
     setStatus("loading");
     setError(null);
     try {
-      setRows(await specificationApi.list(id));
+      setRows(await specificationApi.list(assemblyId));
       setStatus("ready");
     } catch (e) {
       setError(humanizeSpecificationError(e));
       setStatus("error");
     }
-  };
+  }, [assemblyId]);
 
-  const handleOpen = async (event: FormEvent) => {
-    event.preventDefault();
-    const id = assemblyId.trim();
-    if (!id) return;
-    setOpenedId(id);
-    await load(id);
-  };
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const handleAdd = async (event: FormEvent) => {
     event.preventDefault();
-    if (!openedId || !itemId.trim() || !quantity.trim()) return;
+    if (!itemId.trim() || !quantity.trim()) return;
     const item: CatalogItemReference = { type: itemType, id: itemId.trim() };
     setSubmitting(true);
     setError(null);
     try {
-      await specificationApi.addRow(openedId, item, Number(quantity));
+      await specificationApi.addRow(assemblyId, item, Number(quantity));
       setItemId("");
       setQuantity("");
-      await load(openedId);
+      await load();
     } catch (e) {
       setError(humanizeSpecificationError(e));
     } finally {
@@ -67,24 +66,23 @@ export default function SpecificationPanel() {
   };
 
   const handleChangeQuantity = async (item: CatalogItemReference) => {
-    if (!openedId || !draftQuantity.trim()) return;
+    if (!draftQuantity.trim()) return;
     setError(null);
     try {
-      await specificationApi.changeQuantity(openedId, item, Number(draftQuantity));
+      await specificationApi.changeQuantity(assemblyId, item, Number(draftQuantity));
       setEditingItemId(null);
       setDraftQuantity("");
-      await load(openedId);
+      await load();
     } catch (e) {
       setError(humanizeSpecificationError(e));
     }
   };
 
   const handleRemove = async (item: CatalogItemReference) => {
-    if (!openedId) return;
     setError(null);
     try {
-      await specificationApi.removeRow(openedId, item);
-      await load(openedId);
+      await specificationApi.removeRow(assemblyId, item);
+      await load();
     } catch (e) {
       setError(humanizeSpecificationError(e));
     }
@@ -92,12 +90,12 @@ export default function SpecificationPanel() {
 
   const handleCopy = async (event: FormEvent) => {
     event.preventDefault();
-    if (!openedId || !copyNumber.trim() || !copyName.trim()) return;
+    if (!copyNumber.trim() || !copyName.trim()) return;
     setSubmitting(true);
     setError(null);
     setCopyResult(null);
     try {
-      const created = await specificationApi.copy(openedId, copyNumber.trim(), copyName.trim());
+      const created = await specificationApi.copy(assemblyId, copyNumber.trim(), copyName.trim());
       setCopyResult(`Создана сборка: ${created.number}`);
       setCopyNumber("");
       setCopyName("");
@@ -110,22 +108,12 @@ export default function SpecificationPanel() {
 
   return (
     <section className="specification-panel">
+      <button onClick={onBack}>Назад</button>
       <h2>Спецификация</h2>
-      <form className="create-form" onSubmit={handleOpen}>
-        <input
-          value={assemblyId}
-          onChange={(e) => setAssemblyId(e.target.value)}
-          placeholder="ID сборки"
-          aria-label="ID сборки"
-        />
-        <button type="submit">Открыть</button>
-      </form>
-
       {error && <div className="banner banner-error">{error}</div>}
-
       {status === "loading" && <p className="muted">Загрузка…</p>}
-
-      {status === "ready" && openedId && (
+      {status === "error" && !error && <p className="muted">Не удалось загрузить спецификацию.</p>}
+      {status === "ready" && (
         <>
           {rows.length === 0 ? (
             <p className="muted">Спецификация пуста</p>
@@ -227,8 +215,6 @@ export default function SpecificationPanel() {
           {copyResult && <p className="muted">{copyResult}</p>}
         </>
       )}
-
-      {status === "error" && !error && <p className="muted">Не удалось загрузить спецификацию.</p>}
     </section>
   );
 }

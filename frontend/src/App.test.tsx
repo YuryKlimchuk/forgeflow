@@ -37,7 +37,7 @@ describe("App", () => {
     }
   });
 
-  it("при старте выбирает вкладку «Детали» и загружает /api/v1/parts", async () => {
+  it("при старте выбирает «Детали» и загружает /api/v1/parts", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
 
     render(<App />);
@@ -46,7 +46,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Детали" })).toHaveClass("tab-active");
   });
 
-  it("переключение на вкладку «Покупные» загружает /api/v1/buys", async () => {
+  it("переключение вкладки загружает соответствующий endpoint", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
 
     render(<App />);
@@ -74,7 +74,6 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Номер")).toHaveValue("");
     });
-
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/parts",
       expect.objectContaining({ method: "POST" }),
@@ -98,20 +97,38 @@ describe("App", () => {
     expect(await screen.findByText(/Номер уже занят/)).toBeInTheDocument();
   });
 
-  it("переименование отправляет PUT на endpoint выбранного типа", async () => {
-    const renamed = { ...ENTRY, name: "Новое имя" };
+  it("открывает деталь по клику на строку", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(200, [ENTRY]))
-      .mockResolvedValueOnce(jsonResponse(204, undefined))
-      .mockResolvedValueOnce(jsonResponse(200, [renamed]));
+      .mockResolvedValueOnce(jsonResponse(200, ENTRY));
 
     render(<App />);
     await screen.findByText("P-1");
 
+    await userEvent.click(screen.getByText("P-1"));
+
+    expect(await screen.findByText("Обновлено")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts/1");
+  });
+
+  it("переименовывает на детальной странице", async () => {
+    const renamed = { ...ENTRY, name: "Новая деталь" };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(200, [ENTRY]))
+      .mockResolvedValueOnce(jsonResponse(200, ENTRY))
+      .mockResolvedValueOnce(jsonResponse(204, undefined))
+      .mockResolvedValueOnce(jsonResponse(200, renamed));
+
+    render(<App />);
+    await screen.findByText("P-1");
+    await userEvent.click(screen.getByText("P-1"));
+    await screen.findByText("Обновлено");
+
     await userEvent.click(screen.getByRole("button", { name: "Переименовать" }));
     await userEvent.clear(screen.getByLabelText("Новое название"));
-    await userEvent.type(screen.getByLabelText("Новое название"), "Новое имя");
+    await userEvent.type(screen.getByLabelText("Новое название"), "Новая деталь");
     await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => {
@@ -120,32 +137,22 @@ describe("App", () => {
         expect.objectContaining({ method: "PUT" }),
       );
     });
+    expect(await screen.findByText("Новая деталь")).toBeInTheDocument();
   });
 
-  it("отмена подтверждения не отправляет DELETE", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, [ENTRY]));
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-
-    render(<App />);
-    await screen.findByText("P-1");
-
-    await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
-
-    expect(window.confirm).toHaveBeenCalled();
-    const deleteCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE");
-    expect(deleteCalls).toHaveLength(0);
-  });
-
-  it("подтверждение удаления отправляет DELETE и перезагружает список", async () => {
+  it("удаляет с подтверждением и возвращается к списку", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(200, [ENTRY]))
+      .mockResolvedValueOnce(jsonResponse(200, ENTRY))
       .mockResolvedValueOnce(jsonResponse(204, undefined))
       .mockResolvedValueOnce(jsonResponse(200, []));
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<App />);
     await screen.findByText("P-1");
+    await userEvent.click(screen.getByText("P-1"));
+    await screen.findByText("Обновлено");
 
     await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
 
@@ -155,7 +162,56 @@ describe("App", () => {
         expect.objectContaining({ method: "DELETE" }),
       );
     });
-
     expect(await screen.findByText(/Пока нет записей/)).toBeInTheDocument();
+  });
+
+  it("отмена удаления не отправляет DELETE", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(200, [ENTRY]))
+      .mockResolvedValueOnce(jsonResponse(200, ENTRY));
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<App />);
+    await screen.findByText("P-1");
+    await userEvent.click(screen.getByText("P-1"));
+    await screen.findByText("Обновлено");
+
+    await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
+
+    expect(window.confirm).toHaveBeenCalled();
+    const deleteCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE");
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("открывает состав из детали сборки", async () => {
+    const ASSEMBLY = {
+      id: { value: "10" },
+      number: "СБ-1",
+      name: "Узел",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(200, []))
+      .mockResolvedValueOnce(jsonResponse(200, [ASSEMBLY]))
+      .mockResolvedValueOnce(jsonResponse(200, ASSEMBLY))
+      .mockResolvedValueOnce(jsonResponse(200, []));
+
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Сборки" }));
+    await screen.findByText("СБ-1");
+    await userEvent.click(screen.getByText("СБ-1"));
+    await screen.findByText("Обновлено");
+
+    await userEvent.click(screen.getByRole("button", { name: "Состав" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/specifications/10/rows");
+    });
+    expect(await screen.findByText("Спецификация")).toBeInTheDocument();
   });
 });

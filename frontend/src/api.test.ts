@@ -48,6 +48,14 @@ describe("catalogApi", () => {
     expect(fetchMock).toHaveBeenCalledWith(endpoint);
   });
 
+  it("get отправляет GET на {endpoint}/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, ENTRY));
+
+    await catalogApi.get("/api/v1/parts", "1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts/1");
+  });
+
   it.each(CATALOG_TYPES)("create отправляет POST на $endpoint", async ({ endpoint }) => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(201, ENTRY));
 
