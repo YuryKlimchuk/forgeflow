@@ -10,15 +10,18 @@ import CatalogTable from "./CatalogTable";
 import CatalogDetail from "./CatalogDetail";
 import CreateCatalogEntryForm from "./CreateCatalogEntryForm";
 import SpecificationDetail from "./SpecificationDetail";
+import PlanList from "./PlanList";
+import PlanDetail from "./PlanDetail";
 import "./App.css";
 
 type Status = "loading" | "ready" | "error";
-type View = "list" | "catalog-detail" | "spec-detail";
+type View = "list" | "catalog-detail" | "spec-detail" | "plans" | "plan-detail";
 
 export default function App() {
   const [activeKey, setActiveKey] = useState(CATALOG_TYPES[0].key);
   const [view, setView] = useState<View>("list");
   const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +91,14 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>ForgeFlow — Каталог</h1>
+        <nav className="app-nav">
+          <button onClick={() => { setView("list"); setSelectedEntry(null); setSelectedPlanId(null); }}>
+            Каталог
+          </button>
+          <button onClick={() => { setView("plans"); setSelectedPlanId(null); }}>
+            Планы
+          </button>
+        </nav>
       </header>
       <main className="app-main">
         {view === "list" && (
@@ -142,6 +153,22 @@ export default function App() {
 
         {view === "spec-detail" && selectedEntry && (
           <SpecificationDetail assemblyId={selectedEntry.id.value} onBack={backToDetail} />
+        )}
+
+        {view === "plans" && (
+          <PlanList
+            onOpen={(id) => {
+              setSelectedPlanId(id);
+              setView("plan-detail");
+            }}
+          />
+        )}
+
+        {view === "plan-detail" && selectedPlanId && (
+          <PlanDetail
+            id={selectedPlanId}
+            onBack={() => setView("plans")}
+          />
         )}
       </main>
     </div>

@@ -96,6 +96,25 @@ export interface FlatBomItem {
   quantity: number;
 }
 
+export interface PlanItemView {
+  assemblyId: { value: string };
+  quantity: number;
+}
+
+export interface PlanView {
+  id: { value: string };
+  name: string;
+  year: number;
+  month: number;
+  items: PlanItemView[];
+}
+
+export interface CreatePlanRequest {
+  name: string;
+  year: number;
+  month: number;
+}
+
 export const specificationApi = {
   async list(assemblyId: string): Promise<SpecificationRow[]> {
     return toJsonOrThrow<SpecificationRow[]>(
@@ -192,6 +211,56 @@ export const catalogApi = {
   },
 };
 
+export const planningApi = {
+  async create(request: CreatePlanRequest): Promise<PlanView> {
+    return toJsonOrThrow<PlanView>(
+      await fetch("/api/v1/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async list(): Promise<PlanView[]> {
+    return toJsonOrThrow<PlanView[]>(await fetch("/api/v1/plans"));
+  },
+
+  async get(id: string): Promise<PlanView> {
+    return toJsonOrThrow<PlanView>(await fetch(`/api/v1/plans/${id}`));
+  },
+
+  async addItem(id: string, assemblyId: string, quantity: number): Promise<PlanItemView> {
+    return toJsonOrThrow<PlanItemView>(
+      await fetch(`/api/v1/plans/${id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assemblyId: { value: assemblyId }, quantity }),
+      }),
+    );
+  },
+
+  async changeQuantity(id: string, assemblyId: string, quantity: number): Promise<void> {
+    return toJsonOrThrow<void>(
+      await fetch(`/api/v1/plans/${id}/items/${assemblyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity }),
+      }),
+    );
+  },
+
+  async removeItem(id: string, assemblyId: string): Promise<void> {
+    return toJsonOrThrow<void>(
+      await fetch(`/api/v1/plans/${id}/items/${assemblyId}`, { method: "DELETE" }),
+    );
+  },
+
+  async flat(id: string): Promise<FlatBomItem[]> {
+    return toJsonOrThrow<FlatBomItem[]>(await fetch(`/api/v1/plans/${id}/flat`));
+  },
+};
+
 export async function loadCatalogIndex(): Promise<Record<CatalogItemType, CatalogEntry[]>> {
   const pairs = await Promise.all(
     CATALOG_ITEM_TYPES.map(async (type) => {
@@ -223,6 +292,24 @@ export function humanizeSpecificationError(error: unknown): string {
     switch (error.code) {
       case "duplicate":
         return "Элемент уже присутствует в спецификации";
+      case "not_found":
+        return "Запись не найдена";
+      case "bad_request":
+        return "Некорректный запрос";
+      case "bom_cycle":
+        return "В спецификации обнаружен цикл";
+      default:
+        return error.message;
+    }
+  }
+  return "Что-то пошло не так";
+}
+
+export function humanizePlanError(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    switch (error.code) {
+      case "duplicate":
+        return "Такое имя или сборка уже существуют в плане";
       case "not_found":
         return "Запись не найдена";
       case "bad_request":

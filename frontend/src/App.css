@@ -31,6 +31,22 @@ body {
   font-weight: 600;
 }
 
+.app-nav {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.app-nav button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+
+.app-nav button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .app-main {
   max-width: 960px;
   margin: 24px auto;

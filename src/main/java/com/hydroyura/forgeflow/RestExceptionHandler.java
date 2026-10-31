@@ -15,6 +15,11 @@ import com.hydroyura.forgeflow.organizations.application.OrganizationAccessDenie
 import com.hydroyura.forgeflow.organizations.application.OrganizationNotFoundException;
 import com.hydroyura.forgeflow.organizations.application.OrganizationsException;
 import com.hydroyura.forgeflow.organizations.application.OwnerRequiredException;
+import com.hydroyura.forgeflow.planning.domain.DuplicatePlanItemException;
+import com.hydroyura.forgeflow.planning.domain.DuplicatePlanNameException;
+import com.hydroyura.forgeflow.planning.domain.PlanItemNotFoundException;
+import com.hydroyura.forgeflow.planning.domain.PlanNotFoundException;
+import com.hydroyura.forgeflow.planning.domain.PlansException;
 import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
@@ -105,5 +110,17 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleBomCycle(BomCycleException e) {
         return Map.of("error", "bom_cycle", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({PlanNotFoundException.class, PlanItemNotFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handlePlanNotFound(PlansException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({DuplicatePlanNameException.class, DuplicatePlanItemException.class})
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handlePlanDuplicate(PlansException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
     }
 }

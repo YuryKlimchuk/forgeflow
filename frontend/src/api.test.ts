@@ -4,6 +4,7 @@ import {
   CATALOG_TYPES,
   catalogApi,
   humanizeSpecificationError,
+  planningApi,
   specificationApi,
   type CatalogItemReference,
 } from "./api";
@@ -169,5 +170,67 @@ describe("specificationApi", () => {
   it("humanizeSpecificationError сообщает о цикле для bom_cycle", () => {
     expect(humanizeSpecificationError(new ApiClientError(409, "bom_cycle", "...")))
       .toBe("В спецификации обнаружен цикл");
+  });
+});
+
+describe("planningApi", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const PLAN = {
+    id: { value: "plan-1" },
+    name: "Декабрь 2027",
+    year: 2027,
+    month: 12,
+    items: [],
+  };
+
+  it("list отправляет GET на /api/v1/plans", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
+
+    await planningApi.list();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/plans");
+  });
+
+  it("create отправляет POST с телом плана", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(201, PLAN));
+
+    await planningApi.create({ name: "Декабрь 2027", year: 2027, month: 12 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/plans",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "Декабрь 2027", year: 2027, month: 12 }),
+      }),
+    );
+  });
+
+  it("addItem отправляет POST с assemblyId и quantity", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(201, { assemblyId: { value: "a-1" }, quantity: 2 }),
+    );
+
+    await planningApi.addItem("plan-1", "a-1", 2);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/plans/plan-1/items",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ assemblyId: { value: "a-1" }, quantity: 2 }),
+      }),
+    );
+  });
+
+  it("flat отправляет GET на /api/v1/plans/{id}/flat", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, [{ number: "Д-0001", name: "Втулка", quantity: 10 }]),
+    );
+
+    await planningApi.flat("plan-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/plans/plan-1/flat");
   });
 });

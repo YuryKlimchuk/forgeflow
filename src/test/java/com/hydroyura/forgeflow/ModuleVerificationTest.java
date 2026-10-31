@@ -10,7 +10,7 @@ class ModuleVerificationTest {
 
     private static final List<String> EXPECTED_MODULES = List.of(
             "organizations", "adminpanel", "technology", "specifications",
-            "catalog", "directories", "shared", "security", "web");
+            "catalog", "directories", "shared", "security", "web", "planning");
 
     @Test
     void verifyModularity() {

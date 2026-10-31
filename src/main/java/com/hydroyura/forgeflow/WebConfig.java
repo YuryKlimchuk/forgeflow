@@ -29,6 +29,11 @@ import com.hydroyura.forgeflow.specifications.application.SpecificationApplicati
 import com.hydroyura.forgeflow.specifications.application.SpecificationMapper;
 import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
+import com.hydroyura.forgeflow.specifications.api.SpecificationService;
+import com.hydroyura.forgeflow.planning.application.PlanApplicationService;
+import com.hydroyura.forgeflow.planning.application.PlanMapper;
+import com.hydroyura.forgeflow.planning.domain.PlanRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.InMemoryPlanRepository;
 import com.hydroyura.forgeflow.organizations.api.OrganizationService;
 import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
@@ -270,6 +275,29 @@ public class WebConfig {
         return new SpecificationApplicationService(
                 specificationRepository, organizationContext, assemblyService,
                 partService, buyService, standartService, vzkService, specificationMapper);
+    }
+
+    // --- Planning ---
+
+    @Bean
+    public PlanRepository planRepository() {
+        return new InMemoryPlanRepository();
+    }
+
+    @Bean
+    public PlanMapper planMapper() {
+        return new PlanMapper();
+    }
+
+    @Bean
+    public PlanApplicationService planService(
+            PlanRepository planRepository,
+            OrganizationContext organizationContext,
+            AssemblyService assemblyService,
+            SpecificationService specificationService,
+            PlanMapper planMapper) {
+        return new PlanApplicationService(
+                planRepository, organizationContext, assemblyService, specificationService, planMapper);
     }
 
     // --- Web ---
