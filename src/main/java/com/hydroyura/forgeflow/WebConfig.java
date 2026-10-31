@@ -2,7 +2,9 @@ package com.hydroyura.forgeflow;
 
 import com.hydroyura.forgeflow.catalog.application.PartApplicationService;
 import com.hydroyura.forgeflow.catalog.application.PartMapper;
+import com.hydroyura.forgeflow.catalog.domain.assembly.AssemblyRepository;
 import com.hydroyura.forgeflow.catalog.domain.part.PartRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryAssemblyRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryPartRepository;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
 import com.hydroyura.forgeflow.organizations.application.OrganizationApplicationService;
@@ -20,8 +22,11 @@ import com.hydroyura.forgeflow.security.infrastructure.OrganizationContextLifecy
 import com.hydroyura.forgeflow.security.infrastructure.StubAuthenticatedUserProvider;
 import com.hydroyura.forgeflow.security.infrastructure.ThreadLocalOrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
+import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Composition root: собирает бины из портов и адаптеров доменных модулей,
@@ -35,6 +40,11 @@ public class WebConfig {
     @Bean
     public PartRepository partRepository() {
         return new InMemoryPartRepository();
+    }
+
+    @Bean
+    public AssemblyRepository assemblyRepository() {
+        return new InMemoryAssemblyRepository();
     }
 
     @Bean
@@ -128,5 +138,24 @@ public class WebConfig {
     @Bean
     public TenantContextFilter tenantContextFilter(OrganizationContextLifecycle lifecycle) {
         return new TenantContextFilter(lifecycle);
+    }
+
+    // --- Seed ---
+
+    @Bean
+    public SeedProperties seedProperties(
+            @Value("${forgeflow.seed.enabled:true}") boolean enabled,
+            @Value("${forgeflow.seed.data-file:seed-data/catalog.json}") String dataFile) {
+        return new SeedProperties(enabled, dataFile);
+    }
+
+    @Bean
+    public DataSeeder dataSeeder(
+            PartRepository partRepository,
+            AssemblyRepository assemblyRepository,
+            OrganizationId demoOrganizationId,
+            SeedProperties seedProperties,
+            ObjectMapper objectMapper) {
+        return new DataSeeder(partRepository, assemblyRepository, demoOrganizationId, seedProperties, objectMapper);
     }
 }
