@@ -33,6 +33,12 @@ public interface OrganizationService {
     void renameOrganization(OrganizationId organizationId, String newName);
 
     /**
+     * Полностью заменяет настройки организации; доступно только владельцу.
+     * Невалидные (некомпилируемые) паттерны отклоняются без изменения настроек.
+     */
+    void updateSettings(OrganizationId organizationId, OrganizationSettings settings);
+
+    /**
      * Добавляет пользователя участником организации; доступно только владельцу.
      */
     void addMember(OrganizationId organizationId, UserId userId);

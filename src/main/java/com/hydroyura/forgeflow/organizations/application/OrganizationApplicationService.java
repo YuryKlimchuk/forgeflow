@@ -3,6 +3,7 @@ package com.hydroyura.forgeflow.organizations.application;
 import com.hydroyura.forgeflow.organizations.api.Affiliation;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import com.hydroyura.forgeflow.organizations.api.OrganizationService;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.organizations.api.OrganizationView;
 import com.hydroyura.forgeflow.organizations.api.OwnerId;
 import com.hydroyura.forgeflow.organizations.api.UserId;
@@ -13,6 +14,8 @@ import com.hydroyura.forgeflow.organizations.domain.Owner;
 import com.hydroyura.forgeflow.organizations.domain.OwnerRepository;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Реализация публичных операций организаций. Действующий пользователь
@@ -93,6 +96,21 @@ public class OrganizationApplicationService implements OrganizationService {
     }
 
     @Override
+    public void updateSettings(OrganizationId organizationId, OrganizationSettings settings) {
+        Objects.requireNonNull(organizationId, "organizationId must not be null");
+        Objects.requireNonNull(settings, "settings must not be null");
+        UserId subject = subjectProvider.currentSubject();
+        membershipCoordinator.atomic(() -> {
+            requireOwner(subject, organizationId);
+            Organization organization = requireOrganization(organizationId);
+            validatePatterns(settings);
+            organization.replaceSettings(settings, clock.now());
+            organizationRepository.save(organization);
+            return null;
+        });
+    }
+
+    @Override
     public void addMember(OrganizationId organizationId, UserId userId) {
         Objects.requireNonNull(userId, "userId must not be null");
         UserId subject = subjectProvider.currentSubject();
@@ -166,6 +184,25 @@ public class OrganizationApplicationService implements OrganizationService {
     private void requireOwner(UserId subject, OrganizationId organizationId) {
         if (!isOwner(subject, organizationId)) {
             throw new OwnerRequiredException("Only the owner can perform this operation");
+        }
+    }
+
+    private static void validatePatterns(OrganizationSettings settings) {
+        validatePattern("part", settings.partNumberPattern());
+        validatePattern("assembly", settings.assemblyNumberPattern());
+        validatePattern("buy", settings.buyNumberPattern());
+        validatePattern("standart", settings.standartNumberPattern());
+        validatePattern("vzk", settings.vzkNumberPattern());
+    }
+
+    private static void validatePattern(String type, String pattern) {
+        if (pattern == null) {
+            return;
+        }
+        try {
+            Pattern.compile(pattern);
+        } catch (PatternSyntaxException e) {
+            throw new IllegalArgumentException("Invalid " + type + " number pattern: " + pattern, e);
         }
     }
 

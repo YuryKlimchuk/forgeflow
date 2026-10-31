@@ -10,6 +10,8 @@ import com.hydroyura.forgeflow.catalog.api.VzkView;
 import com.hydroyura.forgeflow.catalog.domain.vzk.Vzk;
 import com.hydroyura.forgeflow.catalog.domain.vzk.VzkRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryVzkRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
@@ -27,8 +29,10 @@ class VzkApplicationServiceTest {
 
     private final OrganizationId orgId = OrganizationId.generate();
     private final InMemoryVzkRepository repository = new InMemoryVzkRepository();
+    private OrganizationSettings settings = OrganizationSettings.empty();
+    private final OrganizationSettingsProvider settingsProvider = ignored -> settings;
     private final VzkApplicationService service = new VzkApplicationService(
-            repository, fakeContext(orgId), VzkMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+            repository, fakeContext(orgId), settingsProvider, VzkMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
     @Test
     void create_returnsViewWithSystemFields() {
@@ -54,6 +58,24 @@ class VzkApplicationServiceTest {
         assertThatThrownBy(() -> service.create(new CreateVzkRequest("В-1", "  ")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name");
+    }
+
+    @Test
+    void create_rejectsNumberNotMatchingPattern() {
+        settings = new OrganizationSettings(null, null, null, null, "VZK-[0-9]+");
+
+        assertThatThrownBy(() -> service.create(new CreateVzkRequest("7", "Группа ВЗК")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pattern");
+    }
+
+    @Test
+    void create_acceptsNumberMatchingPattern() {
+        settings = new OrganizationSettings(null, null, null, null, "VZK-[0-9]+");
+
+        VzkView view = service.create(new CreateVzkRequest("VZK-7", "Группа ВЗК"));
+
+        assertThat(view.number()).isEqualTo("VZK-7");
     }
 
     @Test
@@ -123,6 +145,16 @@ class VzkApplicationServiceTest {
     }
 
     @Test
+    void rename_doesNotValidateNumber() {
+        settings = new OrganizationSettings(null, null, null, null, "VZK-[0-9]+");
+        VzkView created = service.create(new CreateVzkRequest("VZK-1", "Группа ВЗК"));
+
+        service.rename(created.id(), "Новое имя");
+
+        assertThat(service.get(created.id()).name()).isEqualTo("Новое имя");
+    }
+
+    @Test
     void rename_throwsWhenMissing() {
         assertThatThrownBy(() -> service.rename(VzkId.generate(), "Имя"))
                 .isInstanceOf(VzkNotFoundException.class);
@@ -151,7 +183,7 @@ class VzkApplicationServiceTest {
     void passesOrganizationIdFromContextToRepository() {
         RecordingVzkRepository recording = new RecordingVzkRepository();
         VzkApplicationService recordingService = new VzkApplicationService(
-                recording, fakeContext(orgId), VzkMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                recording, fakeContext(orgId), settingsProvider, VzkMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         recordingService.create(new CreateVzkRequest("В-1", "Группа ВЗК"));
         recordingService.list(new VzkFilter());
@@ -162,7 +194,7 @@ class VzkApplicationServiceTest {
     @Test
     void throwsWhenNoOrganizationContext() {
         VzkApplicationService noContext = new VzkApplicationService(
-                repository, fakeContext(null), VzkMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                repository, fakeContext(null), settingsProvider, VzkMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> noContext.list(new VzkFilter()))
                 .isInstanceOf(OrganizationContextNotAvailableException.class);

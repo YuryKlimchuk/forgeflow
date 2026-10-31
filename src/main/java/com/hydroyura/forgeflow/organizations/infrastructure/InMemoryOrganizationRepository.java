@@ -1,6 +1,7 @@
 package com.hydroyura.forgeflow.organizations.infrastructure;
 
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.organizations.api.UserId;
 import com.hydroyura.forgeflow.organizations.domain.Organization;
 import com.hydroyura.forgeflow.organizations.domain.OrganizationRepository;
@@ -30,5 +31,11 @@ public class InMemoryOrganizationRepository implements OrganizationRepository {
         return byId.values().stream()
                 .filter(organization -> organization.hasMember(userId))
                 .findFirst();
+    }
+
+    @Override
+    public OrganizationSettings findSettings(OrganizationId id) {
+        Organization organization = byId.get(id);
+        return organization == null ? OrganizationSettings.empty() : organization.getSettings();
     }
 }

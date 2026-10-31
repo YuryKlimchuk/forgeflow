@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hydroyura.forgeflow.organizations.api.Affiliation;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.organizations.api.OrganizationView;
 import com.hydroyura.forgeflow.organizations.api.UserId;
 import com.hydroyura.forgeflow.organizations.infrastructure.InMemoryMembershipCoordinator;
@@ -125,6 +126,39 @@ class OrganizationApplicationServiceTest {
         subjectProvider.set(UserId.of("member-1"));
         assertThatThrownBy(() -> service.renameOrganization(orgId, "X"))
                 .isInstanceOf(OwnerRequiredException.class);
+    }
+
+    @Test
+    void updateSettingsByOwnerReplacesAllValues() {
+        OrganizationId orgId = createOrganizationWithOwner("owner-1", "Acme");
+        subjectProvider.set(UserId.of("owner-1"));
+        OrganizationSettings settings = new OrganizationSettings("P-\\d+", "A-\\d+", "B-\\d+", "S-\\d+", "V-\\d+");
+
+        service.updateSettings(orgId, settings);
+
+        assertThat(organizations.findSettings(orgId)).isEqualTo(settings);
+    }
+
+    @Test
+    void updateSettingsByMemberRejected() {
+        OrganizationId orgId = createOrganizationWithOwnerAndMember("owner-1", "member-1", "Acme");
+        subjectProvider.set(UserId.of("member-1"));
+
+        assertThatThrownBy(() -> service.updateSettings(orgId, OrganizationSettings.empty()))
+                .isInstanceOf(OwnerRequiredException.class);
+    }
+
+    @Test
+    void updateSettingsWithInvalidRegexRejectedAndStateUnchanged() {
+        OrganizationId orgId = createOrganizationWithOwner("owner-1", "Acme");
+        subjectProvider.set(UserId.of("owner-1"));
+        OrganizationSettings before = new OrganizationSettings("P-\\d+", null, null, null, null);
+        service.updateSettings(orgId, before);
+
+        assertThatThrownBy(() -> service.updateSettings(orgId, new OrganizationSettings("([unclosed", null, null, null, null)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(organizations.findSettings(orgId)).isEqualTo(before);
     }
 
     @Test

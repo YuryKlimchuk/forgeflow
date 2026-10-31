@@ -24,8 +24,10 @@ import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryBuyRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryPartRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryStandartRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryVzkRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
 import com.hydroyura.forgeflow.organizations.application.OrganizationApplicationService;
+import com.hydroyura.forgeflow.organizations.application.OrganizationSettingsProviderAdapter;
 import com.hydroyura.forgeflow.organizations.application.SubjectProvider;
 import com.hydroyura.forgeflow.organizations.domain.OrganizationRepository;
 import com.hydroyura.forgeflow.organizations.domain.OwnerRepository;
@@ -144,6 +146,12 @@ public class WebConfig {
     }
 
     @Bean
+    public OrganizationSettingsProvider organizationSettingsProvider(
+            OrganizationRepository organizationRepository) {
+        return new OrganizationSettingsProviderAdapter(organizationRepository);
+    }
+
+    @Bean
     public MembershipCoordinator membershipCoordinator(
             OwnerRepository owners,
             OrganizationRepository organizations) {
@@ -185,45 +193,50 @@ public class WebConfig {
     public PartApplicationService partService(
             PartRepository partRepository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             PartMapper partMapper,
             java.time.Clock systemClock) {
-        return new PartApplicationService(partRepository, organizationContext, partMapper, systemClock);
+        return new PartApplicationService(partRepository, organizationContext, settingsProvider, partMapper, systemClock);
     }
 
     @Bean
     public AssemblyApplicationService assemblyService(
             AssemblyRepository assemblyRepository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             AssemblyMapper assemblyMapper,
             java.time.Clock systemClock) {
-        return new AssemblyApplicationService(assemblyRepository, organizationContext, assemblyMapper, systemClock);
+        return new AssemblyApplicationService(assemblyRepository, organizationContext, settingsProvider, assemblyMapper, systemClock);
     }
 
     @Bean
     public BuyApplicationService buyService(
             BuyRepository buyRepository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             BuyMapper buyMapper,
             java.time.Clock systemClock) {
-        return new BuyApplicationService(buyRepository, organizationContext, buyMapper, systemClock);
+        return new BuyApplicationService(buyRepository, organizationContext, settingsProvider, buyMapper, systemClock);
     }
 
     @Bean
     public StandartApplicationService standartService(
             StandartRepository standartRepository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             StandartMapper standartMapper,
             java.time.Clock systemClock) {
-        return new StandartApplicationService(standartRepository, organizationContext, standartMapper, systemClock);
+        return new StandartApplicationService(standartRepository, organizationContext, settingsProvider, standartMapper, systemClock);
     }
 
     @Bean
     public VzkApplicationService vzkService(
             VzkRepository vzkRepository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             VzkMapper vzkMapper,
             java.time.Clock systemClock) {
-        return new VzkApplicationService(vzkRepository, organizationContext, vzkMapper, systemClock);
+        return new VzkApplicationService(vzkRepository, organizationContext, settingsProvider, vzkMapper, systemClock);
     }
 
     // --- Web ---

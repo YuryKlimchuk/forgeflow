@@ -7,6 +7,7 @@ import com.hydroyura.forgeflow.catalog.api.BuyView;
 import com.hydroyura.forgeflow.catalog.api.CreateBuyRequest;
 import com.hydroyura.forgeflow.catalog.domain.buy.Buy;
 import com.hydroyura.forgeflow.catalog.domain.buy.BuyRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import java.time.Clock;
@@ -21,16 +22,19 @@ public class BuyApplicationService implements BuyService {
 
     private final BuyRepository repository;
     private final OrganizationContext organizationContext;
+    private final OrganizationSettingsProvider settingsProvider;
     private final BuyMapper mapper;
     private final Clock clock;
 
     public BuyApplicationService(
             BuyRepository repository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             BuyMapper mapper,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.organizationContext = Objects.requireNonNull(organizationContext, "organizationContext must not be null");
+        this.settingsProvider = Objects.requireNonNull(settingsProvider, "settingsProvider must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
@@ -39,6 +43,9 @@ public class BuyApplicationService implements BuyService {
     public BuyView create(CreateBuyRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         OrganizationId organizationId = organizationContext.requiredOrganizationId();
+        if (!settingsProvider.findSettings(organizationId).matchesBuy(request.number())) {
+            throw new IllegalArgumentException("Buy number does not match the organization pattern: " + request.number());
+        }
         if (repository.existsByNumber(request.number(), organizationId)) {
             throw new DuplicateBuyNumberException(request.number());
         }

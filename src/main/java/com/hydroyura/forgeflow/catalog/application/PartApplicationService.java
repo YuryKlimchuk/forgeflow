@@ -7,6 +7,7 @@ import com.hydroyura.forgeflow.catalog.api.PartService;
 import com.hydroyura.forgeflow.catalog.api.PartView;
 import com.hydroyura.forgeflow.catalog.domain.part.Part;
 import com.hydroyura.forgeflow.catalog.domain.part.PartRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import java.time.Clock;
@@ -24,16 +25,19 @@ public class PartApplicationService implements PartService {
 
     private final PartRepository repository;
     private final OrganizationContext organizationContext;
+    private final OrganizationSettingsProvider settingsProvider;
     private final PartMapper mapper;
     private final Clock clock;
 
     public PartApplicationService(
             PartRepository repository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             PartMapper mapper,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.organizationContext = Objects.requireNonNull(organizationContext, "organizationContext must not be null");
+        this.settingsProvider = Objects.requireNonNull(settingsProvider, "settingsProvider must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
@@ -42,6 +46,9 @@ public class PartApplicationService implements PartService {
     public PartView create(CreatePartRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         OrganizationId organizationId = organizationContext.requiredOrganizationId();
+        if (!settingsProvider.findSettings(organizationId).matchesPart(request.number())) {
+            throw new IllegalArgumentException("Part number does not match the organization pattern: " + request.number());
+        }
         if (repository.existsByNumber(request.number(), organizationId)) {
             throw new DuplicatePartNumberException(request.number());
         }

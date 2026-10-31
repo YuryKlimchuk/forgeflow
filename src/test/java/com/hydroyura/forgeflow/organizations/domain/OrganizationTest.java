@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.organizations.api.UserId;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,33 @@ class OrganizationTest {
         assertThat(organization.getName()).isEqualTo("Acme Inc");
         assertThat(organization.getUpdatedAt()).isEqualTo(LATER);
         assertThat(organization.getCreatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void organizationStartsWithEmptySettings() {
+        Organization organization = Organization.create(OrganizationId.generate(), "Acme", NOW);
+
+        assertThat(organization.getSettings()).isEqualTo(OrganizationSettings.empty());
+    }
+
+    @Test
+    void replaceSettingsUpdatesAllFiveValuesAndUpdatedAt() {
+        Organization organization = Organization.create(OrganizationId.generate(), "Acme", NOW);
+        OrganizationSettings settings = new OrganizationSettings("P", "A", "B", "S", "V");
+
+        organization.replaceSettings(settings, LATER);
+
+        assertThat(organization.getSettings()).isEqualTo(settings);
+        assertThat(organization.getUpdatedAt()).isEqualTo(LATER);
+        assertThat(organization.getCreatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void replaceSettingsRejectsNull() {
+        Organization organization = Organization.create(OrganizationId.generate(), "Acme", NOW);
+
+        assertThatThrownBy(() -> organization.replaceSettings(null, LATER))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

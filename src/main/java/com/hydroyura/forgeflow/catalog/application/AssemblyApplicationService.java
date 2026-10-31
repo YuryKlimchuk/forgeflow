@@ -7,6 +7,7 @@ import com.hydroyura.forgeflow.catalog.api.AssemblyView;
 import com.hydroyura.forgeflow.catalog.api.CreateAssemblyRequest;
 import com.hydroyura.forgeflow.catalog.domain.assembly.Assembly;
 import com.hydroyura.forgeflow.catalog.domain.assembly.AssemblyRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import java.time.Clock;
@@ -21,16 +22,19 @@ public class AssemblyApplicationService implements AssemblyService {
 
     private final AssemblyRepository repository;
     private final OrganizationContext organizationContext;
+    private final OrganizationSettingsProvider settingsProvider;
     private final AssemblyMapper mapper;
     private final Clock clock;
 
     public AssemblyApplicationService(
             AssemblyRepository repository,
             OrganizationContext organizationContext,
+            OrganizationSettingsProvider settingsProvider,
             AssemblyMapper mapper,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.organizationContext = Objects.requireNonNull(organizationContext, "organizationContext must not be null");
+        this.settingsProvider = Objects.requireNonNull(settingsProvider, "settingsProvider must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
@@ -39,6 +43,9 @@ public class AssemblyApplicationService implements AssemblyService {
     public AssemblyView create(CreateAssemblyRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         OrganizationId organizationId = organizationContext.requiredOrganizationId();
+        if (!settingsProvider.findSettings(organizationId).matchesAssembly(request.number())) {
+            throw new IllegalArgumentException("Assembly number does not match the organization pattern: " + request.number());
+        }
         if (repository.existsByNumber(request.number(), organizationId)) {
             throw new DuplicateAssemblyNumberException(request.number());
         }

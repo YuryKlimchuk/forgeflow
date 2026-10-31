@@ -10,6 +10,8 @@ import com.hydroyura.forgeflow.catalog.api.StandartView;
 import com.hydroyura.forgeflow.catalog.domain.standart.Standart;
 import com.hydroyura.forgeflow.catalog.domain.standart.StandartRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryStandartRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
@@ -27,8 +29,10 @@ class StandartApplicationServiceTest {
 
     private final OrganizationId orgId = OrganizationId.generate();
     private final InMemoryStandartRepository repository = new InMemoryStandartRepository();
+    private OrganizationSettings settings = OrganizationSettings.empty();
+    private final OrganizationSettingsProvider settingsProvider = ignored -> settings;
     private final StandartApplicationService service = new StandartApplicationService(
-            repository, fakeContext(orgId), StandartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+            repository, fakeContext(orgId), settingsProvider, StandartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
     @Test
     void create_returnsViewWithSystemFields() {
@@ -54,6 +58,24 @@ class StandartApplicationServiceTest {
         assertThatThrownBy(() -> service.create(new CreateStandartRequest("С-1", "  ")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name");
+    }
+
+    @Test
+    void create_rejectsNumberNotMatchingPattern() {
+        settings = new OrganizationSettings(null, null, null, "STD-[0-9]+", null);
+
+        assertThatThrownBy(() -> service.create(new CreateStandartRequest("7", "Стандартное изделие")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pattern");
+    }
+
+    @Test
+    void create_acceptsNumberMatchingPattern() {
+        settings = new OrganizationSettings(null, null, null, "STD-[0-9]+", null);
+
+        StandartView view = service.create(new CreateStandartRequest("STD-7", "Стандартное изделие"));
+
+        assertThat(view.number()).isEqualTo("STD-7");
     }
 
     @Test
@@ -123,6 +145,16 @@ class StandartApplicationServiceTest {
     }
 
     @Test
+    void rename_doesNotValidateNumber() {
+        settings = new OrganizationSettings(null, null, null, "STD-[0-9]+", null);
+        StandartView created = service.create(new CreateStandartRequest("STD-1", "Стандартное изделие"));
+
+        service.rename(created.id(), "Новое имя");
+
+        assertThat(service.get(created.id()).name()).isEqualTo("Новое имя");
+    }
+
+    @Test
     void rename_throwsWhenMissing() {
         assertThatThrownBy(() -> service.rename(StandartId.generate(), "Имя"))
                 .isInstanceOf(StandartNotFoundException.class);
@@ -151,7 +183,7 @@ class StandartApplicationServiceTest {
     void passesOrganizationIdFromContextToRepository() {
         RecordingStandartRepository recording = new RecordingStandartRepository();
         StandartApplicationService recordingService = new StandartApplicationService(
-                recording, fakeContext(orgId), StandartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                recording, fakeContext(orgId), settingsProvider, StandartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         recordingService.create(new CreateStandartRequest("С-1", "Стандартное изделие"));
         recordingService.list(new StandartFilter());
@@ -162,7 +194,7 @@ class StandartApplicationServiceTest {
     @Test
     void throwsWhenNoOrganizationContext() {
         StandartApplicationService noContext = new StandartApplicationService(
-                repository, fakeContext(null), StandartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                repository, fakeContext(null), settingsProvider, StandartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> noContext.list(new StandartFilter()))
                 .isInstanceOf(OrganizationContextNotAvailableException.class);

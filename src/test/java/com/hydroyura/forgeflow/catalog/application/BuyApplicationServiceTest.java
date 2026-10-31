@@ -10,6 +10,8 @@ import com.hydroyura.forgeflow.catalog.api.CreateBuyRequest;
 import com.hydroyura.forgeflow.catalog.domain.buy.Buy;
 import com.hydroyura.forgeflow.catalog.domain.buy.BuyRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryBuyRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
@@ -27,8 +29,10 @@ class BuyApplicationServiceTest {
 
     private final OrganizationId orgId = OrganizationId.generate();
     private final InMemoryBuyRepository repository = new InMemoryBuyRepository();
+    private OrganizationSettings settings = OrganizationSettings.empty();
+    private final OrganizationSettingsProvider settingsProvider = ignored -> settings;
     private final BuyApplicationService service = new BuyApplicationService(
-            repository, fakeContext(orgId), BuyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+            repository, fakeContext(orgId), settingsProvider, BuyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
     @Test
     void create_returnsViewWithSystemFields() {
@@ -54,6 +58,24 @@ class BuyApplicationServiceTest {
         assertThatThrownBy(() -> service.create(new CreateBuyRequest("Б-1", "  ")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name");
+    }
+
+    @Test
+    void create_rejectsNumberNotMatchingPattern() {
+        settings = new OrganizationSettings(null, null, "BUY-[0-9]+", null, null);
+
+        assertThatThrownBy(() -> service.create(new CreateBuyRequest("7", "Покупное изделие")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pattern");
+    }
+
+    @Test
+    void create_acceptsNumberMatchingPattern() {
+        settings = new OrganizationSettings(null, null, "BUY-[0-9]+", null, null);
+
+        BuyView view = service.create(new CreateBuyRequest("BUY-7", "Покупное изделие"));
+
+        assertThat(view.number()).isEqualTo("BUY-7");
     }
 
     @Test
@@ -123,6 +145,16 @@ class BuyApplicationServiceTest {
     }
 
     @Test
+    void rename_doesNotValidateNumber() {
+        settings = new OrganizationSettings(null, null, "BUY-[0-9]+", null, null);
+        BuyView created = service.create(new CreateBuyRequest("BUY-1", "Покупное изделие"));
+
+        service.rename(created.id(), "Новое имя");
+
+        assertThat(service.get(created.id()).name()).isEqualTo("Новое имя");
+    }
+
+    @Test
     void rename_throwsWhenMissing() {
         assertThatThrownBy(() -> service.rename(BuyId.generate(), "Имя"))
                 .isInstanceOf(BuyNotFoundException.class);
@@ -151,7 +183,7 @@ class BuyApplicationServiceTest {
     void passesOrganizationIdFromContextToRepository() {
         RecordingBuyRepository recording = new RecordingBuyRepository();
         BuyApplicationService recordingService = new BuyApplicationService(
-                recording, fakeContext(orgId), BuyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                recording, fakeContext(orgId), settingsProvider, BuyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         recordingService.create(new CreateBuyRequest("Б-1", "Покупное изделие"));
         recordingService.list(new BuyFilter());
@@ -162,7 +194,7 @@ class BuyApplicationServiceTest {
     @Test
     void throwsWhenNoOrganizationContext() {
         BuyApplicationService noContext = new BuyApplicationService(
-                repository, fakeContext(null), BuyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                repository, fakeContext(null), settingsProvider, BuyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> noContext.list(new BuyFilter()))
                 .isInstanceOf(OrganizationContextNotAvailableException.class);

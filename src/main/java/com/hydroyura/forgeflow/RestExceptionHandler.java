@@ -11,6 +11,10 @@ import com.hydroyura.forgeflow.catalog.application.DuplicateVzkNumberException;
 import com.hydroyura.forgeflow.catalog.application.PartNotFoundException;
 import com.hydroyura.forgeflow.catalog.application.StandartNotFoundException;
 import com.hydroyura.forgeflow.catalog.application.VzkNotFoundException;
+import com.hydroyura.forgeflow.organizations.application.OrganizationAccessDeniedException;
+import com.hydroyura.forgeflow.organizations.application.OrganizationNotFoundException;
+import com.hydroyura.forgeflow.organizations.application.OrganizationsException;
+import com.hydroyura.forgeflow.organizations.application.OwnerRequiredException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -61,5 +65,17 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleBadRequest(IllegalArgumentException e) {
         return Map.of("error", "bad_request", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(OrganizationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleOrganizationNotFound(OrganizationNotFoundException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({OwnerRequiredException.class, OrganizationAccessDeniedException.class})
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleOrganizationForbidden(OrganizationsException e) {
+        return Map.of("error", "forbidden", "message", String.valueOf(e.getMessage()));
     }
 }

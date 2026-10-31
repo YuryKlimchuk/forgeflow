@@ -10,6 +10,8 @@ import com.hydroyura.forgeflow.catalog.api.CreateAssemblyRequest;
 import com.hydroyura.forgeflow.catalog.domain.assembly.Assembly;
 import com.hydroyura.forgeflow.catalog.domain.assembly.AssemblyRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryAssemblyRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
@@ -27,8 +29,10 @@ class AssemblyApplicationServiceTest {
 
     private final OrganizationId orgId = OrganizationId.generate();
     private final InMemoryAssemblyRepository repository = new InMemoryAssemblyRepository();
+    private OrganizationSettings settings = OrganizationSettings.empty();
+    private final OrganizationSettingsProvider settingsProvider = ignored -> settings;
     private final AssemblyApplicationService service = new AssemblyApplicationService(
-            repository, fakeContext(orgId), AssemblyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+            repository, fakeContext(orgId), settingsProvider, AssemblyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
     @Test
     void create_returnsViewWithSystemFields() {
@@ -54,6 +58,24 @@ class AssemblyApplicationServiceTest {
         assertThatThrownBy(() -> service.create(new CreateAssemblyRequest("А-1", "  ")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name");
+    }
+
+    @Test
+    void create_rejectsNumberNotMatchingPattern() {
+        settings = new OrganizationSettings(null, "ASM-[0-9]+", null, null, null);
+
+        assertThatThrownBy(() -> service.create(new CreateAssemblyRequest("7", "Узел")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pattern");
+    }
+
+    @Test
+    void create_acceptsNumberMatchingPattern() {
+        settings = new OrganizationSettings(null, "ASM-[0-9]+", null, null, null);
+
+        AssemblyView view = service.create(new CreateAssemblyRequest("ASM-7", "Узел"));
+
+        assertThat(view.number()).isEqualTo("ASM-7");
     }
 
     @Test
@@ -123,6 +145,16 @@ class AssemblyApplicationServiceTest {
     }
 
     @Test
+    void rename_doesNotValidateNumber() {
+        settings = new OrganizationSettings(null, "ASM-[0-9]+", null, null, null);
+        AssemblyView created = service.create(new CreateAssemblyRequest("ASM-1", "Узел"));
+
+        service.rename(created.id(), "Новое имя");
+
+        assertThat(service.get(created.id()).name()).isEqualTo("Новое имя");
+    }
+
+    @Test
     void rename_throwsWhenMissing() {
         assertThatThrownBy(() -> service.rename(AssemblyId.generate(), "Имя"))
                 .isInstanceOf(AssemblyNotFoundException.class);
@@ -151,7 +183,7 @@ class AssemblyApplicationServiceTest {
     void passesOrganizationIdFromContextToRepository() {
         RecordingAssemblyRepository recording = new RecordingAssemblyRepository();
         AssemblyApplicationService recordingService = new AssemblyApplicationService(
-                recording, fakeContext(orgId), AssemblyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                recording, fakeContext(orgId), settingsProvider, AssemblyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         recordingService.create(new CreateAssemblyRequest("А-1", "Узел"));
         recordingService.list(new AssemblyFilter());
@@ -162,7 +194,7 @@ class AssemblyApplicationServiceTest {
     @Test
     void throwsWhenNoOrganizationContext() {
         AssemblyApplicationService noContext = new AssemblyApplicationService(
-                repository, fakeContext(null), AssemblyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                repository, fakeContext(null), settingsProvider, AssemblyMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> noContext.list(new AssemblyFilter()))
                 .isInstanceOf(OrganizationContextNotAvailableException.class);

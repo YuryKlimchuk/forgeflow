@@ -10,6 +10,8 @@ import com.hydroyura.forgeflow.catalog.api.PartView;
 import com.hydroyura.forgeflow.catalog.domain.part.Part;
 import com.hydroyura.forgeflow.catalog.domain.part.PartRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryPartRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
@@ -19,6 +21,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class PartApplicationServiceTest {
@@ -27,8 +30,10 @@ class PartApplicationServiceTest {
 
     private final OrganizationId orgId = OrganizationId.generate();
     private final InMemoryPartRepository repository = new InMemoryPartRepository();
+    private OrganizationSettings settings = OrganizationSettings.empty();
+    private final OrganizationSettingsProvider settingsProvider = ignored -> settings;
     private final PartApplicationService service = new PartApplicationService(
-            repository, fakeContext(orgId), PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+            repository, fakeContext(orgId), settingsProvider, PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
     @Test
     void create_returnsViewWithSystemFields() {
@@ -54,6 +59,24 @@ class PartApplicationServiceTest {
         assertThatThrownBy(() -> service.create(new CreatePartRequest("P-1", "  ")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("name");
+    }
+
+    @Test
+    void create_rejectsNumberNotMatchingPattern() {
+        settings = new OrganizationSettings("PART-[0-9]+", null, null, null, null);
+
+        assertThatThrownBy(() -> service.create(new CreatePartRequest("42", "Деталь")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pattern");
+    }
+
+    @Test
+    void create_acceptsNumberMatchingPattern() {
+        settings = new OrganizationSettings("PART-[0-9]+", null, null, null, null);
+
+        PartView view = service.create(new CreatePartRequest("PART-42", "Деталь"));
+
+        assertThat(view.number()).isEqualTo("PART-42");
     }
 
     @Test
@@ -102,6 +125,16 @@ class PartApplicationServiceTest {
     }
 
     @Test
+    void rename_doesNotValidateNumber() {
+        settings = new OrganizationSettings("PART-[0-9]+", null, null, null, null);
+        PartView created = service.create(new CreatePartRequest("PART-1", "Деталь"));
+
+        service.rename(created.id(), "Новое имя");
+
+        assertThat(service.get(created.id()).name()).isEqualTo("Новое имя");
+    }
+
+    @Test
     void rename_throwsWhenMissing() {
         assertThatThrownBy(() -> service.rename(PartId.generate(), "Имя"))
                 .isInstanceOf(PartNotFoundException.class);
@@ -130,7 +163,7 @@ class PartApplicationServiceTest {
     void passesOrganizationIdFromContextToRepository() {
         RecordingPartRepository recording = new RecordingPartRepository();
         PartApplicationService recordingService = new PartApplicationService(
-                recording, fakeContext(orgId), PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                recording, fakeContext(orgId), settingsProvider, PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         recordingService.create(new CreatePartRequest("P-1", "Деталь"));
         recordingService.list(new PartFilter());
@@ -139,9 +172,24 @@ class PartApplicationServiceTest {
     }
 
     @Test
+    void requestsSettingsForContextOrganization() {
+        AtomicReference<OrganizationId> requestedOrg = new AtomicReference<>();
+        OrganizationSettingsProvider capturingProvider = id -> {
+            requestedOrg.set(id);
+            return OrganizationSettings.empty();
+        };
+        PartApplicationService svc = new PartApplicationService(
+                repository, fakeContext(orgId), capturingProvider, PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+
+        svc.create(new CreatePartRequest("P-1", "Деталь"));
+
+        assertThat(requestedOrg.get()).isEqualTo(orgId);
+    }
+
+    @Test
     void throwsWhenNoOrganizationContext() {
         PartApplicationService noContext = new PartApplicationService(
-                repository, fakeContext(null), PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
+                repository, fakeContext(null), settingsProvider, PartMapper.INSTANCE, Clock.fixed(FIXED, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> noContext.list(new PartFilter()))
                 .isInstanceOf(OrganizationContextNotAvailableException.class);

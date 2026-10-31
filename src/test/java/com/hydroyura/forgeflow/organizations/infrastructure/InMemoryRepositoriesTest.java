@@ -3,6 +3,7 @@ package com.hydroyura.forgeflow.organizations.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.organizations.api.OwnerId;
 import com.hydroyura.forgeflow.organizations.api.UserId;
 import com.hydroyura.forgeflow.organizations.domain.Organization;
@@ -37,6 +38,19 @@ class InMemoryRepositoriesTest {
         assertThat(repository.findById(organization.getId())).contains(organization);
         assertThat(repository.findByMemberUserId(member)).contains(organization);
         assertThat(repository.findByMemberUserId(UserId.of("unknown"))).isEmpty();
+    }
+
+    @Test
+    void organizationRepositoryFindsSettings() {
+        InMemoryOrganizationRepository repository = new InMemoryOrganizationRepository();
+        Organization organization = Organization.create(OrganizationId.generate(), "Acme", NOW);
+        OrganizationSettings settings = new OrganizationSettings("P-\\d+", null, null, null, null);
+        organization.replaceSettings(settings, NOW);
+        repository.save(organization);
+
+        assertThat(repository.findSettings(organization.getId())).isEqualTo(settings);
+        assertThat(repository.findSettings(OrganizationId.generate()))
+                .isEqualTo(OrganizationSettings.empty());
     }
 
     @Test

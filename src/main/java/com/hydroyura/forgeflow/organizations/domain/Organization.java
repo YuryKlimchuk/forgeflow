@@ -1,6 +1,7 @@
 package com.hydroyura.forgeflow.organizations.domain;
 
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.organizations.api.UserId;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,6 +30,8 @@ public class Organization {
 
     private final List<Membership> members = new ArrayList<>();
 
+    private OrganizationSettings settings = OrganizationSettings.empty();
+
     private Organization(OrganizationId id, String name, Instant now) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.name = requireNotBlank(name);
@@ -42,6 +45,11 @@ public class Organization {
 
     public void rename(String newName, Instant now) {
         this.name = requireNotBlank(newName);
+        this.updatedAt = Objects.requireNonNull(now, "now must not be null");
+    }
+
+    public void replaceSettings(OrganizationSettings newSettings, Instant now) {
+        this.settings = Objects.requireNonNull(newSettings, "newSettings must not be null");
         this.updatedAt = Objects.requireNonNull(now, "now must not be null");
     }
 
@@ -83,6 +91,10 @@ public class Organization {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public OrganizationSettings getSettings() {
+        return settings;
     }
 
     private static String requireNotBlank(String value) {
