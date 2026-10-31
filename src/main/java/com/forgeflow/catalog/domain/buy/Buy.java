@@ -1,9 +1,9 @@
 package com.forgeflow.catalog.domain.buy;
 
 import com.forgeflow.catalog.api.BuyId;
+import com.forgeflow.shared.api.OrganizationId;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.jmolecules.ddd.annotation.Entity;
 import org.jmolecules.ddd.annotation.Identity;
@@ -16,12 +16,12 @@ public class Buy {
 
     private final String number;
     private final String name;
-    private final UUID organizationId;
+    private final OrganizationId organizationId;
     private final Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
 
-    private Buy(BuyId id, String number, String name, UUID organizationId, Instant createdAt, Instant updatedAt) {
+    private Buy(BuyId id, String number, String name, OrganizationId organizationId, Instant createdAt, Instant updatedAt) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.number = requireNotBlank(number, "number");
         this.name = requireNotBlank(name, "name");
@@ -30,7 +30,7 @@ public class Buy {
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }
 
-    public static Buy create(BuyId id, String number, String name, UUID organizationId, Instant createdAt, Instant updatedAt) {
+    public static Buy create(BuyId id, String number, String name, OrganizationId organizationId, Instant createdAt, Instant updatedAt) {
         return new Buy(id, number, name, organizationId, createdAt, updatedAt);
     }
 
@@ -62,7 +62,7 @@ public class Buy {
         return name;
     }
 
-    public UUID getOrganizationId() {
+    public OrganizationId getOrganizationId() {
         return organizationId;
     }
 

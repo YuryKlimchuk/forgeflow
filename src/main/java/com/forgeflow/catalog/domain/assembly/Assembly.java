@@ -1,9 +1,9 @@
 package com.forgeflow.catalog.domain.assembly;
 
 import com.forgeflow.catalog.api.AssemblyId;
+import com.forgeflow.shared.api.OrganizationId;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.jmolecules.ddd.annotation.Entity;
 import org.jmolecules.ddd.annotation.Identity;
@@ -16,12 +16,12 @@ public class Assembly {
 
     private final String number;
     private final String name;
-    private final UUID organizationId;
+    private final OrganizationId organizationId;
     private final Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
 
-    private Assembly(AssemblyId id, String number, String name, UUID organizationId, Instant createdAt, Instant updatedAt) {
+    private Assembly(AssemblyId id, String number, String name, OrganizationId organizationId, Instant createdAt, Instant updatedAt) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.number = requireNotBlank(number, "number");
         this.name = requireNotBlank(name, "name");
@@ -30,7 +30,7 @@ public class Assembly {
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
     }
 
-    public static Assembly create(AssemblyId id, String number, String name, UUID organizationId, Instant createdAt, Instant updatedAt) {
+    public static Assembly create(AssemblyId id, String number, String name, OrganizationId organizationId, Instant createdAt, Instant updatedAt) {
         return new Assembly(id, number, name, organizationId, createdAt, updatedAt);
     }
 
@@ -62,7 +62,7 @@ public class Assembly {
         return name;
     }
 
-    public UUID getOrganizationId() {
+    public OrganizationId getOrganizationId() {
         return organizationId;
     }
 

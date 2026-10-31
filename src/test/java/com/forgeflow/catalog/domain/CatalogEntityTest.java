@@ -13,11 +13,11 @@ import com.forgeflow.catalog.domain.buy.Buy;
 import com.forgeflow.catalog.domain.part.Part;
 import com.forgeflow.catalog.domain.standart.Standart;
 import com.forgeflow.catalog.domain.vzk.Vzk;
+import com.forgeflow.shared.api.OrganizationId;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import org.jmolecules.ddd.annotation.Entity;
 import org.jmolecules.ddd.annotation.Identity;
@@ -33,7 +33,7 @@ class CatalogEntityTest {
         assertEntityStructure(Assembly.class, AssemblyId.class);
 
         var id = AssemblyId.generate();
-        var organizationId = UUID.randomUUID();
+        var organizationId = OrganizationId.generate();
         var assembly = Assembly.create(id, "A-001", "Узел", organizationId, CREATED, UPDATED);
 
         assertThat(assembly.getId()).isEqualTo(id);
@@ -67,7 +67,7 @@ class CatalogEntityTest {
         assertEntityStructure(Part.class, PartId.class);
 
         var id = PartId.generate();
-        var organizationId = UUID.randomUUID();
+        var organizationId = OrganizationId.generate();
         var part = Part.create(id, "P-001", "Деталь", organizationId, CREATED, UPDATED);
 
         assertThat(part.getId()).isEqualTo(id);
@@ -95,7 +95,7 @@ class CatalogEntityTest {
         assertEntityStructure(Buy.class, BuyId.class);
 
         var id = BuyId.generate();
-        var organizationId = UUID.randomUUID();
+        var organizationId = OrganizationId.generate();
         var buy = Buy.create(id, "B-001", "Покупное изделие", organizationId, CREATED, UPDATED);
 
         assertThat(buy.getId()).isEqualTo(id);
@@ -123,7 +123,7 @@ class CatalogEntityTest {
         assertEntityStructure(Standart.class, StandartId.class);
 
         var id = StandartId.generate();
-        var organizationId = UUID.randomUUID();
+        var organizationId = OrganizationId.generate();
         var standart = Standart.create(id, "S-001", "Стандартное изделие", organizationId, CREATED, UPDATED);
 
         assertThat(standart.getId()).isEqualTo(id);
@@ -151,7 +151,7 @@ class CatalogEntityTest {
         assertEntityStructure(Vzk.class, VzkId.class);
 
         var id = VzkId.generate();
-        var organizationId = UUID.randomUUID();
+        var organizationId = OrganizationId.generate();
         var vzk = Vzk.create(id, "V-001", "Группа ВЗК", organizationId, CREATED, UPDATED);
 
         assertThat(vzk.getId()).isEqualTo(id);
@@ -185,7 +185,7 @@ class CatalogEntityTest {
         assertThat(fields.get("id")).isEqualTo(idClass);
         assertThat(fields.get("number")).isEqualTo(String.class);
         assertThat(fields.get("name")).isEqualTo(String.class);
-        assertThat(fields.get("organizationId")).isEqualTo(UUID.class);
+        assertThat(fields.get("organizationId")).isEqualTo(OrganizationId.class);
         assertThat(fields.get("createdAt")).isEqualTo(Instant.class);
         assertThat(fields.get("updatedAt")).isEqualTo(Instant.class);
         assertThat(fields.get("deletedAt")).isEqualTo(Instant.class);

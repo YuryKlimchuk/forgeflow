@@ -10,35 +10,35 @@
 
 #### Scenario: Проверка сущности сборочной единицы
 - **WHEN** анализируется класс `com.forgeflow.catalog.domain.assembly.Assembly`
-- **THEN** класс имеет указанные аннотации и поля типов `AssemblyId`, `String`, `String`, `UUID`, `Instant`, `Instant`, `Instant`
+- **THEN** класс имеет указанные аннотации и поля типов `AssemblyId`, `String`, `String`, `OrganizationId`, `Instant`, `Instant`, `Instant`
 
 ### Requirement: Сущность Part
 Домен каталога SHALL предоставлять сущность `Part` с jMolecules-аннотациями `@Entity` и `@Identity`. `Part` SHALL содержать идентификатор `PartId` и поля `number`, `name`, `organizationId`, `createdAt`, `updatedAt` и nullable `deletedAt`.
 
 #### Scenario: Проверка сущности детали
 - **WHEN** анализируется класс `com.forgeflow.catalog.domain.part.Part`
-- **THEN** класс имеет указанные аннотации и поля типов `PartId`, `String`, `String`, `UUID`, `Instant`, `Instant`, `Instant`
+- **THEN** класс имеет указанные аннотации и поля типов `PartId`, `String`, `String`, `OrganizationId`, `Instant`, `Instant`, `Instant`
 
 ### Requirement: Сущность Buy
 Домен каталога SHALL предоставлять сущность `Buy` с jMolecules-аннотациями `@Entity` и `@Identity`. `Buy` SHALL содержать идентификатор `BuyId` и поля `number`, `name`, `organizationId`, `createdAt`, `updatedAt` и nullable `deletedAt`.
 
 #### Scenario: Проверка сущности покупной детали
 - **WHEN** анализируется класс `com.forgeflow.catalog.domain.buy.Buy`
-- **THEN** класс имеет указанные аннотации и поля типов `BuyId`, `String`, `String`, `UUID`, `Instant`, `Instant`, `Instant`
+- **THEN** класс имеет указанные аннотации и поля типов `BuyId`, `String`, `String`, `OrganizationId`, `Instant`, `Instant`, `Instant`
 
 ### Requirement: Сущность Standart
 Домен каталога SHALL предоставлять сущность `Standart` с jMolecules-аннотациями `@Entity` и `@Identity`. `Standart` SHALL содержать идентификатор `StandartId` и поля `number`, `name`, `organizationId`, `createdAt`, `updatedAt` и nullable `deletedAt`.
 
 #### Scenario: Проверка сущности стандартного изделия
 - **WHEN** анализируется класс `com.forgeflow.catalog.domain.standart.Standart`
-- **THEN** класс имеет указанные аннотации и поля типов `StandartId`, `String`, `String`, `UUID`, `Instant`, `Instant`, `Instant`
+- **THEN** класс имеет указанные аннотации и поля типов `StandartId`, `String`, `String`, `OrganizationId`, `Instant`, `Instant`, `Instant`
 
 ### Requirement: Сущность Vzk
 Домен каталога SHALL предоставлять сущность `Vzk` с jMolecules-аннотациями `@Entity` и `@Identity`. `Vzk` SHALL содержать идентификатор `VzkId` и поля `number`, `name`, `organizationId`, `createdAt`, `updatedAt` и nullable `deletedAt`.
 
 #### Scenario: Проверка сущности группы ВЗК
 - **WHEN** анализируется класс `com.forgeflow.catalog.domain.vzk.Vzk`
-- **THEN** класс имеет указанные аннотации и поля типов `VzkId`, `String`, `String`, `UUID`, `Instant`, `Instant`, `Instant`
+- **THEN** класс имеет указанные аннотации и поля типов `VzkId`, `String`, `String`, `OrganizationId`, `Instant`, `Instant`, `Instant`
 
 ### Requirement: Типизированный идентификатор Assembly
 Публичный API каталога SHALL предоставлять `AssemblyId` как неизменяемый `record` с компонентом `UUID value`, фабрикой `generate()` и фабрикой `of(UUID)`.
@@ -98,7 +98,7 @@
 - **THEN** создание завершается fail-fast исключением `IllegalArgumentException` с сообщением, идентифицирующим поле `name`
 
 ### Requirement: Organization и аудит
-Каждая сущность каталога SHALL хранить непустой `UUID organizationId`, `Instant createdAt` и `Instant updatedAt`; поля аудита SHALL содержать только временные метки и не SHALL включать `createdBy` или `updatedBy`.
+Каждая сущность каталога SHALL хранить непустой `shared.api.OrganizationId organizationId`, `Instant createdAt` и `Instant updatedAt`; поля аудита SHALL содержать только временные метки и не SHALL включать `createdBy` или `updatedBy`.
 
 #### Scenario: Создание сущности с организацией
 - **WHEN** создаётся сущность с заданными `organizationId`, `createdAt` и `updatedAt`
@@ -116,12 +116,16 @@
 - **THEN** сущность остаётся удалённой, а исходный `deletedAt` не заменяется
 
 ### Requirement: Порты репозиториев каталога
-Домен каталога SHALL предоставлять отдельный driven port для каждой сущности с операциями `save(entity)` и `delete(id)`. Операция `delete(id)` SHALL означать логическое удаление, а порты SHALL находиться в доменном слое и не зависеть от Spring, JPA или хранилища.
+Домен каталога SHALL предоставлять отдельный driven port для каждой сущности; порты SHALL находиться в доменном слое и не зависеть от Spring, JPA или хранилища. Порты `Assembly`, `Buy`, `Standart` и `Vzk` SHALL предоставлять операции `save(entity)` и `delete(id)`, где `delete(id)` SHALL означать логическое удаление. Порт `Part` SHALL предоставлять операции `save(entity)`, `findById(id, organizationId)`, `findAll(organizationId)` и `existsByNumber(number, organizationId)` с явной передачей `shared.api.OrganizationId`; логическое удаление `Part` SHALL выполняться через доменный метод `markDeleted()` и последующее `save`, а не через отдельную операцию `delete`.
 
 #### Scenario: Сохранение сущности через порт
 - **WHEN** вызывается `save(entity)` соответствующего порта
 - **THEN** порт принимает сущность именно своего типа без зависимости от инфраструктурного типа
 
-#### Scenario: Удаление через порт
-- **WHEN** вызывается `delete(id)` соответствующего порта
+#### Scenario: Удаление через порт минимальной сущности
+- **WHEN** вызывается `delete(id)` порта `Assembly`, `Buy`, `Standart` или `Vzk`
 - **THEN** контракт операции означает вызов логического удаления по типизированному ID, а не физическое удаление записи
+
+#### Scenario: Чтение деталей через порт Part
+- **WHEN** вызывается `findById`, `findAll` или `existsByNumber` порта `Part`
+- **THEN** каждая операция принимает `shared.api.OrganizationId` явным аргументом и не извлекает организацию из глобального контекста
