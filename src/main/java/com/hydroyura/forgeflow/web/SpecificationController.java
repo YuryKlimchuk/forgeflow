@@ -3,10 +3,14 @@ package com.hydroyura.forgeflow.web;
 import com.hydroyura.forgeflow.catalog.api.AssemblyId;
 import com.hydroyura.forgeflow.catalog.api.AssemblyView;
 import com.hydroyura.forgeflow.specifications.api.AddRowRequest;
+import com.hydroyura.forgeflow.specifications.api.AddSubstituteRequest;
+import com.hydroyura.forgeflow.specifications.api.CatalogItemReference;
+import com.hydroyura.forgeflow.specifications.api.CatalogItemType;
 import com.hydroyura.forgeflow.specifications.api.ChangeQuantityRequest;
 import com.hydroyura.forgeflow.specifications.api.CopySpecificationRequest;
 import com.hydroyura.forgeflow.specifications.api.FlatBomItem;
 import com.hydroyura.forgeflow.specifications.api.RemoveRowRequest;
+import com.hydroyura.forgeflow.specifications.api.RemoveSubstituteRequest;
 import com.hydroyura.forgeflow.specifications.api.SpecificationRowView;
 import com.hydroyura.forgeflow.specifications.api.SpecificationService;
 import java.util.List;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -67,5 +72,28 @@ public class SpecificationController {
     @GetMapping("/{assemblyId}/flat")
     public List<FlatBomItem> flat(@PathVariable UUID assemblyId) {
         return specificationService.flatten(AssemblyId.of(assemblyId));
+    }
+
+    @GetMapping("/{assemblyId}/substitutes")
+    public List<CatalogItemReference> listSubstitutes(
+            @PathVariable UUID assemblyId,
+            @RequestParam String itemType,
+            @RequestParam UUID itemId) {
+        CatalogItemReference item = new CatalogItemReference(CatalogItemType.valueOf(itemType), itemId);
+        return specificationService.listSubstitutes(AssemblyId.of(assemblyId), item);
+    }
+
+    @PostMapping("/{assemblyId}/substitutes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CatalogItemReference addSubstitute(
+            @PathVariable UUID assemblyId, @RequestBody AddSubstituteRequest request) {
+        return specificationService.addSubstitute(AssemblyId.of(assemblyId), request);
+    }
+
+    @DeleteMapping("/{assemblyId}/substitutes")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeSubstitute(
+            @PathVariable UUID assemblyId, @RequestBody RemoveSubstituteRequest request) {
+        specificationService.removeSubstitute(AssemblyId.of(assemblyId), request);
     }
 }

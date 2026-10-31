@@ -22,8 +22,11 @@ import com.hydroyura.forgeflow.planning.domain.PlanNotFoundException;
 import com.hydroyura.forgeflow.planning.domain.PlansException;
 import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
+import com.hydroyura.forgeflow.specifications.domain.DuplicateSubstituteException;
+import com.hydroyura.forgeflow.specifications.domain.InvalidSubstituteException;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
+import com.hydroyura.forgeflow.specifications.domain.SubstituteNotFoundException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -110,6 +113,24 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleBomCycle(BomCycleException e) {
         return Map.of("error", "bom_cycle", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidSubstituteException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleInvalidSubstitute(InvalidSubstituteException e) {
+        return Map.of("error", "bad_request", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateSubstituteException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleDuplicateSubstitute(DuplicateSubstituteException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(SubstituteNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleSubstituteNotFound(SubstituteNotFoundException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
     }
 
     @ExceptionHandler({PlanNotFoundException.class, PlanItemNotFoundException.class})

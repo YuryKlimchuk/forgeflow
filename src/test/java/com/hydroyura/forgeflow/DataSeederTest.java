@@ -17,6 +17,7 @@ import com.hydroyura.forgeflow.organizations.api.OrganizationService;
 import com.hydroyura.forgeflow.organizations.api.OrganizationSettings;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySubstitutionRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -36,12 +37,13 @@ class DataSeederTest {
     private final InMemoryStandartRepository standarts = new InMemoryStandartRepository();
     private final InMemoryVzkRepository vzks = new InMemoryVzkRepository();
     private final InMemorySpecificationRepository specifications = new InMemorySpecificationRepository();
+    private final InMemorySubstitutionRepository substitutions = new InMemorySubstitutionRepository();
     private final OrganizationService organizationService = mock(OrganizationService.class);
     private final OrganizationId orgId = OrganizationId.generate();
 
     private DataSeeder seeder(boolean enabled, Path catalogFile, Path specificationsFile) {
         return new DataSeeder(
-                parts, assemblies, buys, standarts, vzks, specifications,
+                parts, assemblies, buys, standarts, vzks, specifications, substitutions,
                 organizationService, orgId,
                 new SeedProperties(enabled, catalogFile.toString(), specificationsFile.toString()),
                 objectMapper);
@@ -115,6 +117,53 @@ class DataSeederTest {
         Path specs = tempDir.resolve("specifications.json");
         Files.writeString(specs, """
                 [{"assemblyNumber":"СБ-0001","rows":[{"type":"PART","number":"Д-9999","quantity":1}]}]
+                """);
+
+        assertThatThrownBy(() -> seeder(true, catalog, specs).run())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void loadsSubstitutesForRows() throws Exception {
+        Path catalog = tempDir.resolve("catalog.json");
+        Files.writeString(catalog, """
+                [
+                  {"number":"СБ-0001","name":"Насос","type":"ASSEMBLY"},
+                  {"number":"Д-0001","name":"Вал","type":"PART"},
+                  {"number":"Д-0002","name":"Замена вала","type":"PART"}
+                ]
+                """);
+        Path specs = tempDir.resolve("specifications.json");
+        Files.writeString(specs, """
+                [{"assemblyNumber":"СБ-0001","rows":[{
+                  "type":"PART","number":"Д-0001","quantity":1,
+                  "substitutes":[{"type":"PART","number":"Д-0002"}]
+                }]}]
+                """);
+
+        seeder(true, catalog, specs).run();
+
+        var assemblyId = assemblies.findAll(orgId).get(0).getId();
+        var row = specifications.findById(orgId, assemblyId).orElseThrow().rows().get(0);
+        var substitution = substitutions.findById(orgId, assemblyId, row.item()).orElseThrow();
+        assertThat(substitution.substitutes()).hasSize(1);
+    }
+
+    @Test
+    void rejectsMissingSubstituteReference() throws Exception {
+        Path catalog = tempDir.resolve("catalog.json");
+        Files.writeString(catalog, """
+                [
+                  {"number":"СБ-0001","name":"Насос","type":"ASSEMBLY"},
+                  {"number":"Д-0001","name":"Вал","type":"PART"}
+                ]
+                """);
+        Path specs = tempDir.resolve("specifications.json");
+        Files.writeString(specs, """
+                [{"assemblyNumber":"СБ-0001","rows":[{
+                  "type":"PART","number":"Д-0001","quantity":1,
+                  "substitutes":[{"type":"PART","number":"Д-9999"}]
+                }]}]
                 """);
 
         assertThatThrownBy(() -> seeder(true, catalog, specs).run())

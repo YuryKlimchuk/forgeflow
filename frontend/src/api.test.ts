@@ -167,6 +167,44 @@ describe("specificationApi", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/specifications/A-1/flat");
   });
 
+  it("listSubstitutes отправляет GET с query itemType и itemId", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
+
+    await specificationApi.listSubstitutes("A-1", ITEM);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/specifications/A-1/substitutes?itemType=PART&itemId=00000000-0000-0000-0000-000000000001",
+    );
+  });
+
+  it("addSubstitute отправляет POST с телом item и substituteRef", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(201, ITEM));
+
+    await specificationApi.addSubstitute("A-1", ITEM, ITEM);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/specifications/A-1/substitutes",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ item: ITEM, substituteRef: ITEM }),
+      }),
+    );
+  });
+
+  it("removeSubstitute отправляет DELETE с телом item и substituteRef", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await specificationApi.removeSubstitute("A-1", ITEM, ITEM);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/specifications/A-1/substitutes",
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify({ item: ITEM, substituteRef: ITEM }),
+      }),
+    );
+  });
+
   it("humanizeSpecificationError сообщает о цикле для bom_cycle", () => {
     expect(humanizeSpecificationError(new ApiClientError(409, "bom_cycle", "...")))
       .toBe("В спецификации обнаружен цикл");

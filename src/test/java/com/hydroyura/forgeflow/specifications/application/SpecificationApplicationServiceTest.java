@@ -23,20 +23,26 @@ import com.hydroyura.forgeflow.catalog.api.VzkId;
 import com.hydroyura.forgeflow.catalog.api.VzkService;
 import com.hydroyura.forgeflow.catalog.application.AssemblyNotFoundException;
 import com.hydroyura.forgeflow.specifications.api.AddRowRequest;
+import com.hydroyura.forgeflow.specifications.api.AddSubstituteRequest;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemReference;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemType;
 import com.hydroyura.forgeflow.specifications.api.ChangeQuantityRequest;
 import com.hydroyura.forgeflow.specifications.api.CopySpecificationRequest;
 import com.hydroyura.forgeflow.specifications.api.FlatBomItem;
 import com.hydroyura.forgeflow.specifications.api.RemoveRowRequest;
+import com.hydroyura.forgeflow.specifications.api.RemoveSubstituteRequest;
 import com.hydroyura.forgeflow.specifications.api.SpecificationRowView;
 import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
+import com.hydroyura.forgeflow.specifications.domain.DuplicateSubstituteException;
+import com.hydroyura.forgeflow.specifications.domain.InvalidSubstituteException;
 import com.hydroyura.forgeflow.specifications.domain.Quantity;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
 import com.hydroyura.forgeflow.specifications.domain.Specification;
+import com.hydroyura.forgeflow.specifications.domain.SubstituteNotFoundException;
 import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySubstitutionRepository;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
@@ -54,13 +60,14 @@ class SpecificationApplicationServiceTest {
     private final OrganizationId orgId = OrganizationId.generate();
     private final AssemblyId assemblyId = AssemblyId.generate();
     private final InMemorySpecificationRepository repository = new InMemorySpecificationRepository();
+    private final InMemorySubstitutionRepository substitutions = new InMemorySubstitutionRepository();
     private final AssemblyService assemblyService = mock(AssemblyService.class);
     private final PartService partService = mock(PartService.class);
     private final BuyService buyService = mock(BuyService.class);
     private final StandartService standartService = mock(StandartService.class);
     private final VzkService vzkService = mock(VzkService.class);
     private final SpecificationApplicationService service = new SpecificationApplicationService(
-            repository, fakeContext(orgId), assemblyService,
+            repository, substitutions, fakeContext(orgId), assemblyService,
             partService, buyService, standartService, vzkService, new SpecificationMapper());
 
     @BeforeEach
@@ -174,7 +181,7 @@ class SpecificationApplicationServiceTest {
 
         assertThat(result.id()).isEqualTo(newAssemblyId);
         List<SpecificationRowView> copiedRows = service.get(newAssemblyId);
-        assertThat(copiedRows).containsExactly(new SpecificationRowView(item, 7));
+        assertThat(copiedRows).containsExactly(new SpecificationRowView(item, 7, false));
     }
 
     @Test
@@ -251,12 +258,13 @@ class SpecificationApplicationServiceTest {
     @Test
     void tenantIsolationBetweenOrganizations() {
         InMemorySpecificationRepository shared = new InMemorySpecificationRepository();
+        InMemorySubstitutionRepository sharedSubstitutions = new InMemorySubstitutionRepository();
         SpecificationApplicationService serviceA = new SpecificationApplicationService(
-                shared, fakeContext(orgId), assemblyService,
+                shared, sharedSubstitutions, fakeContext(orgId), assemblyService,
                 partService, buyService, standartService, vzkService, new SpecificationMapper());
         OrganizationId orgB = OrganizationId.generate();
         SpecificationApplicationService serviceB = new SpecificationApplicationService(
-                shared, fakeContext(orgB), assemblyService,
+                shared, sharedSubstitutions, fakeContext(orgB), assemblyService,
                 partService, buyService, standartService, vzkService, new SpecificationMapper());
         CatalogItemReference item = part("00000000-0000-0000-0000-000000000009");
 
@@ -264,6 +272,123 @@ class SpecificationApplicationServiceTest {
 
         assertThat(serviceB.get(assemblyId)).isEmpty();
         assertThat(serviceA.get(assemblyId)).hasSize(1);
+    }
+
+    @Test
+    void addSubstituteAndList() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000101");
+        CatalogItemReference substitute = part("00000000-0000-0000-0000-000000000102");
+        service.addRow(assemblyId, new AddRowRequest(item, 2));
+
+        CatalogItemReference added = service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute));
+
+        assertThat(added).isEqualTo(substitute);
+        assertThat(service.listSubstitutes(assemblyId, item)).containsExactly(substitute);
+        assertThat(service.get(assemblyId)).containsExactly(new SpecificationRowView(item, 2, true));
+    }
+
+    @Test
+    void addSubstituteRejectsMissingRow() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000103");
+
+        assertThatThrownBy(() -> service.addSubstitute(
+                assemblyId, new AddSubstituteRequest(item, part("00000000-0000-0000-0000-000000000104"))))
+                .isInstanceOf(RowNotFoundException.class);
+    }
+
+    @Test
+    void addSubstituteRejectsCrossType() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000105");
+        service.addRow(assemblyId, new AddRowRequest(item, 1));
+
+        assertThatThrownBy(() -> service.addSubstitute(assemblyId, new AddSubstituteRequest(
+                item, new CatalogItemReference(
+                        CatalogItemType.ASSEMBLY, UUID.fromString("00000000-0000-0000-0000-000000000106")))))
+                .isInstanceOf(InvalidSubstituteException.class);
+    }
+
+    @Test
+    void addSubstituteRejectsSelf() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000107");
+        service.addRow(assemblyId, new AddRowRequest(item, 1));
+
+        assertThatThrownBy(() -> service.addSubstitute(assemblyId, new AddSubstituteRequest(item, item)))
+                .isInstanceOf(InvalidSubstituteException.class);
+    }
+
+    @Test
+    void addSubstituteRejectsDuplicate() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000108");
+        CatalogItemReference substitute = part("00000000-0000-0000-0000-000000000109");
+        service.addRow(assemblyId, new AddRowRequest(item, 1));
+        service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute));
+
+        assertThatThrownBy(() -> service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute)))
+                .isInstanceOf(DuplicateSubstituteException.class);
+    }
+
+    @Test
+    void removeSubstituteRemoves() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000110");
+        CatalogItemReference substitute = part("00000000-0000-0000-0000-000000000111");
+        service.addRow(assemblyId, new AddRowRequest(item, 1));
+        service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute));
+
+        service.removeSubstitute(assemblyId, new RemoveSubstituteRequest(item, substitute));
+
+        assertThat(service.listSubstitutes(assemblyId, item)).isEmpty();
+        assertThat(service.get(assemblyId)).containsExactly(new SpecificationRowView(item, 1, false));
+    }
+
+    @Test
+    void removeSubstituteRejectsMissingSubstitute() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000112");
+        service.addRow(assemblyId, new AddRowRequest(item, 1));
+
+        assertThatThrownBy(() -> service.removeSubstitute(
+                assemblyId, new RemoveSubstituteRequest(item, part("00000000-0000-0000-0000-000000000113"))))
+                .isInstanceOf(SubstituteNotFoundException.class);
+    }
+
+    @Test
+    void removeRowCascadesSubstitutes() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000114");
+        CatalogItemReference substitute = part("00000000-0000-0000-0000-000000000115");
+        service.addRow(assemblyId, new AddRowRequest(item, 1));
+        service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute));
+
+        service.removeRow(assemblyId, new RemoveRowRequest(item));
+
+        assertThat(substitutions.findById(orgId, assemblyId, item)).isEmpty();
+    }
+
+    @Test
+    void copyCopiesSubstitutes() {
+        CatalogItemReference item = part("00000000-0000-0000-0000-000000000116");
+        CatalogItemReference substitute = part("00000000-0000-0000-0000-000000000117");
+        service.addRow(assemblyId, new AddRowRequest(item, 7));
+        service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute));
+        AssemblyId newAssemblyId = AssemblyId.generate();
+        when(assemblyService.create(any(CreateAssemblyRequest.class)))
+                .thenReturn(assemblyView(newAssemblyId, "СБ-0002"));
+
+        service.copy(assemblyId, new CopySpecificationRequest("СБ-0002", "Новая"));
+
+        assertThat(service.listSubstitutes(newAssemblyId, item)).containsExactly(substitute);
+    }
+
+    @Test
+    void flattenIgnoresSubstitutes() {
+        PartId partId = PartId.generate();
+        PartId substituteId = PartId.generate();
+        CatalogItemReference item = new CatalogItemReference(CatalogItemType.PART, partId.value());
+        CatalogItemReference substitute = new CatalogItemReference(CatalogItemType.PART, substituteId.value());
+        when(partService.get(partId)).thenReturn(new PartView(partId, "Д-0001", "Втулка", NOW, NOW));
+        when(partService.get(substituteId)).thenReturn(new PartView(substituteId, "Д-0002", "Замена", NOW, NOW));
+        service.addRow(assemblyId, new AddRowRequest(item, 3));
+        service.addSubstitute(assemblyId, new AddSubstituteRequest(item, substitute));
+
+        assertThat(service.flatten(assemblyId)).containsExactly(new FlatBomItem("Д-0001", "Втулка", 3));
     }
 
     private static OrganizationContext fakeContext(OrganizationId id) {

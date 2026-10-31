@@ -28,7 +28,9 @@ import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryVzkRepository;
 import com.hydroyura.forgeflow.specifications.application.SpecificationApplicationService;
 import com.hydroyura.forgeflow.specifications.application.SpecificationMapper;
 import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
+import com.hydroyura.forgeflow.specifications.domain.SubstitutionRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySubstitutionRepository;
 import com.hydroyura.forgeflow.specifications.api.SpecificationService;
 import com.hydroyura.forgeflow.planning.application.PlanApplicationService;
 import com.hydroyura.forgeflow.planning.application.PlanMapper;
@@ -258,6 +260,11 @@ public class WebConfig {
     }
 
     @Bean
+    public SubstitutionRepository substitutionRepository() {
+        return new InMemorySubstitutionRepository();
+    }
+
+    @Bean
     public SpecificationMapper specificationMapper() {
         return new SpecificationMapper();
     }
@@ -265,6 +272,7 @@ public class WebConfig {
     @Bean
     public SpecificationApplicationService specificationService(
             SpecificationRepository specificationRepository,
+            SubstitutionRepository substitutionRepository,
             OrganizationContext organizationContext,
             AssemblyService assemblyService,
             PartService partService,
@@ -273,7 +281,7 @@ public class WebConfig {
             VzkService vzkService,
             SpecificationMapper specificationMapper) {
         return new SpecificationApplicationService(
-                specificationRepository, organizationContext, assemblyService,
+                specificationRepository, substitutionRepository, organizationContext, assemblyService,
                 partService, buyService, standartService, vzkService, specificationMapper);
     }
 
@@ -345,6 +353,7 @@ public class WebConfig {
             StandartRepository standartRepository,
             VzkRepository vzkRepository,
             SpecificationRepository specificationRepository,
+            SubstitutionRepository substitutionRepository,
             OrganizationService organizationService,
             OrganizationId demoOrganizationId,
             SeedProperties seedProperties,
@@ -356,6 +365,7 @@ public class WebConfig {
                 standartRepository,
                 vzkRepository,
                 specificationRepository,
+                substitutionRepository,
                 organizationService,
                 demoOrganizationId,
                 seedProperties,

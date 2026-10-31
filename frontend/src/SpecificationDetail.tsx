@@ -50,6 +50,14 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [draftQuantity, setDraftQuantity] = useState("");
 
+  const [substituteRow, setSubstituteRow] = useState<SpecificationRow | null>(null);
+  const [substitutes, setSubstitutes] = useState<CatalogItemReference[]>([]);
+  const [substitutesStatus, setSubstitutesStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [substitutesError, setSubstitutesError] = useState<string | null>(null);
+  const [substituteSearch, setSubstituteSearch] = useState("");
+  const [selectedSubstitute, setSelectedSubstitute] = useState<CatalogEntry | null>(null);
+  const [substituting, setSubstituting] = useState(false);
+
   const load = useCallback(async () => {
     setStatus("loading");
     setError(null);
@@ -91,6 +99,18 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
       entry.number.toLowerCase().includes(query) ||
       entry.name.toLowerCase().includes(query),
   );
+
+  const substituteQuery = substituteSearch.trim().toLowerCase();
+  const substituteCandidates = substituteRow
+    ? (catalogByType[substituteRow.item.type] ?? []).filter(
+        (entry) =>
+          entry.id.value !== substituteRow.item.id &&
+          !substitutes.some((substitute) => substitute.id === entry.id.value) &&
+          (!substituteQuery ||
+            entry.number.toLowerCase().includes(substituteQuery) ||
+            entry.name.toLowerCase().includes(substituteQuery)),
+      )
+    : [];
 
   const handleTypeChange = (value: CatalogItemType) => {
     setItemType(value);
@@ -171,6 +191,65 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
     }
   };
 
+  const loadSubstitutes = useCallback(async (row: SpecificationRow) => {
+    setSubstitutesStatus("loading");
+    setSubstitutesError(null);
+    try {
+      setSubstitutes(await specificationApi.listSubstitutes(assemblyId, row.item));
+      setSubstitutesStatus("ready");
+    } catch (e) {
+      setSubstitutesError(humanizeSpecificationError(e));
+      setSubstitutesStatus("error");
+    }
+  }, [assemblyId]);
+
+  const openSubstitutes = (row: SpecificationRow) => {
+    setSubstituteRow(row);
+    setSelectedSubstitute(null);
+    setSubstituteSearch("");
+    void loadSubstitutes(row);
+  };
+
+  const closeSubstitutes = () => {
+    setSubstituteRow(null);
+    setSubstitutes([]);
+    setSubstitutesError(null);
+  };
+
+  const handleRemoveSubstitute = async (substitute: CatalogItemReference) => {
+    if (!substituteRow) return;
+    setSubstitutesError(null);
+    try {
+      await specificationApi.removeSubstitute(assemblyId, substituteRow.item, substitute);
+      await loadSubstitutes(substituteRow);
+      await load();
+    } catch (e) {
+      setSubstitutesError(humanizeSpecificationError(e));
+    }
+  };
+
+  const handleAddSubstitute = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!substituteRow || !selectedSubstitute) return;
+    setSubstituting(true);
+    setSubstitutesError(null);
+    try {
+      const substituteRef: CatalogItemReference = {
+        type: substituteRow.item.type,
+        id: selectedSubstitute.id.value,
+      };
+      await specificationApi.addSubstitute(assemblyId, substituteRow.item, substituteRef);
+      setSelectedSubstitute(null);
+      setSubstituteSearch("");
+      await loadSubstitutes(substituteRow);
+      await load();
+    } catch (e) {
+      setSubstitutesError(humanizeSpecificationError(e));
+    } finally {
+      setSubstituting(false);
+    }
+  };
+
   return (
     <section className="specification-panel">
       <button onClick={onBack}>Назад</button>
@@ -197,7 +276,19 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
                   const entry = resolve(row.item);
                   return (
                     <tr key={`${row.item.type}:${row.item.id}`}>
-                      <td>{entry?.number ?? "Элемент не найден"}</td>
+                      <td>
+                        {entry?.number ?? "Элемент не найден"}
+                        {row.hasSubstitutes && (
+                          <button
+                            type="button"
+                            className="substitute-marker"
+                            aria-label="Заменители"
+                            onClick={() => openSubstitutes(row)}
+                          >
+                            *
+                          </button>
+                        )}
+                      </td>
                       <td>{entry?.name ?? ""}</td>
                       <td>
                         {editingItemId === row.item.id ? (
@@ -344,6 +435,82 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
           </table>
         )}
       </div>
+
+      {substituteRow && (
+        <div className="substitute-modal" role="dialog" aria-label="Дополнительные замены">
+          <button onClick={closeSubstitutes}>Закрыть</button>
+          <h3>Дополнительные замены</h3>
+          {substitutesError && <div className="banner banner-error">{substitutesError}</div>}
+          {substitutesStatus === "loading" && <p className="muted">Загрузка…</p>}
+          {substitutesStatus === "ready" && (
+            <>
+              {substitutes.length === 0 ? (
+                <p className="muted">Замены не заданы</p>
+              ) : (
+                <ul aria-label="Список заменителей">
+                  {substitutes.map((substitute) => {
+                    const entry = resolve(substitute);
+                    return (
+                      <li key={`${substitute.type}:${substitute.id}`}>
+                        {entry?.number ?? "Элемент не найден"} — {entry?.name ?? ""}
+                        <button
+                          type="button"
+                          onClick={() => void handleRemoveSubstitute(substitute)}
+                        >
+                          Удалить
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
+          )}
+          <form className="create-form" onSubmit={handleAddSubstitute}>
+            {selectedSubstitute ? (
+              <span className="selected-element">
+                {selectedSubstitute.number} — {selectedSubstitute.name}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubstitute(null);
+                    setSubstituteSearch("");
+                  }}
+                >
+                  Сменить
+                </button>
+              </span>
+            ) : (
+              <input
+                value={substituteSearch}
+                onChange={(e) => setSubstituteSearch(e.target.value)}
+                placeholder="Поиск замены"
+                aria-label="Поиск замены"
+              />
+            )}
+            <button type="submit" disabled={substituting || !selectedSubstitute}>
+              {substituting ? "Добавление…" : "Добавить замену"}
+            </button>
+          </form>
+          {!selectedSubstitute && (
+            <ul className="element-options" aria-label="Варианты замены">
+              {substituteCandidates.map((entry) => (
+                <li key={`${substituteRow.item.type}:${entry.id.value}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSubstitute(entry);
+                      setSubstituteSearch("");
+                    }}
+                  >
+                    {entry.number} — {entry.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }

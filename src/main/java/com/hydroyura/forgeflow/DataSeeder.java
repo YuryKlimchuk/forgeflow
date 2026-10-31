@@ -23,6 +23,8 @@ import com.hydroyura.forgeflow.specifications.api.CatalogItemType;
 import com.hydroyura.forgeflow.specifications.domain.Quantity;
 import com.hydroyura.forgeflow.specifications.domain.Specification;
 import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
+import com.hydroyura.forgeflow.specifications.domain.Substitution;
+import com.hydroyura.forgeflow.specifications.domain.SubstitutionRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -58,6 +60,7 @@ public class DataSeeder implements CommandLineRunner {
     private final StandartRepository standartRepository;
     private final VzkRepository vzkRepository;
     private final SpecificationRepository specificationRepository;
+    private final SubstitutionRepository substitutionRepository;
     private final OrganizationService organizationService;
     private final OrganizationId organizationId;
     private final SeedProperties properties;
@@ -70,6 +73,7 @@ public class DataSeeder implements CommandLineRunner {
             StandartRepository standartRepository,
             VzkRepository vzkRepository,
             SpecificationRepository specificationRepository,
+            SubstitutionRepository substitutionRepository,
             OrganizationService organizationService,
             OrganizationId organizationId,
             SeedProperties properties,
@@ -80,6 +84,7 @@ public class DataSeeder implements CommandLineRunner {
         this.standartRepository = Objects.requireNonNull(standartRepository, "standartRepository must not be null");
         this.vzkRepository = Objects.requireNonNull(vzkRepository, "vzkRepository must not be null");
         this.specificationRepository = Objects.requireNonNull(specificationRepository, "specificationRepository must not be null");
+        this.substitutionRepository = Objects.requireNonNull(substitutionRepository, "substitutionRepository must not be null");
         this.organizationService = Objects.requireNonNull(organizationService, "organizationService must not be null");
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
@@ -173,9 +178,32 @@ public class DataSeeder implements CommandLineRunner {
                 aggregate.addRow(reference, new Quantity(row.quantity()));
             }
             specificationRepository.save(aggregate);
+            loadSubstitutes(index, assemblyUuid, specification.rows());
         }
 
         log.info("Seed-спецификации загружены: {}", specifications.size());
+    }
+
+    private void loadSubstitutes(Map<String, UUID> index, UUID assemblyUuid, List<SeedSpecificationRow> rows) {
+        for (SeedSpecificationRow row : rows) {
+            List<SeedSubstitute> substitutes = row.substitutes() == null ? List.of() : row.substitutes();
+            if (substitutes.isEmpty()) {
+                continue;
+            }
+            UUID itemUuid = index.get(key(row.type(), row.number()));
+            CatalogItemReference reference = new CatalogItemReference(toCatalogItemType(row.type()), itemUuid);
+            Substitution substitution = Substitution.create(organizationId, AssemblyId.of(assemblyUuid), reference);
+            for (SeedSubstitute substitute : substitutes) {
+                UUID substituteUuid = index.get(key(substitute.type(), substitute.number()));
+                if (substituteUuid == null) {
+                    throw new IllegalStateException(
+                            "Seed-замена ссылается на отсутствующий элемент: "
+                                    + substitute.type() + " " + substitute.number());
+                }
+                substitution.addSubstitute(new CatalogItemReference(toCatalogItemType(substitute.type()), substituteUuid));
+            }
+            substitutionRepository.save(substitution);
+        }
     }
 
     private static String key(SeedEntry entry) {

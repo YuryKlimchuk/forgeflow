@@ -17,12 +17,14 @@ import com.hydroyura.forgeflow.catalog.api.VzkId;
 import com.hydroyura.forgeflow.catalog.api.VzkService;
 import com.hydroyura.forgeflow.catalog.api.VzkView;
 import com.hydroyura.forgeflow.specifications.api.AddRowRequest;
+import com.hydroyura.forgeflow.specifications.api.AddSubstituteRequest;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemReference;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemType;
 import com.hydroyura.forgeflow.specifications.api.ChangeQuantityRequest;
 import com.hydroyura.forgeflow.specifications.api.CopySpecificationRequest;
 import com.hydroyura.forgeflow.specifications.api.FlatBomItem;
 import com.hydroyura.forgeflow.specifications.api.RemoveRowRequest;
+import com.hydroyura.forgeflow.specifications.api.RemoveSubstituteRequest;
 import com.hydroyura.forgeflow.specifications.api.SpecificationRowView;
 import com.hydroyura.forgeflow.specifications.api.SpecificationService;
 import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
@@ -31,6 +33,9 @@ import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.Specification;
 import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
 import com.hydroyura.forgeflow.specifications.domain.SpecificationRow;
+import com.hydroyura.forgeflow.specifications.domain.SubstituteNotFoundException;
+import com.hydroyura.forgeflow.specifications.domain.Substitution;
+import com.hydroyura.forgeflow.specifications.domain.SubstitutionRepository;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import java.util.ArrayList;
@@ -50,6 +55,7 @@ import java.util.Set;
 public class SpecificationApplicationService implements SpecificationService {
 
     private final SpecificationRepository repository;
+    private final SubstitutionRepository substitutionRepository;
     private final OrganizationContext organizationContext;
     private final AssemblyService assemblyService;
     private final PartService partService;
@@ -60,6 +66,7 @@ public class SpecificationApplicationService implements SpecificationService {
 
     public SpecificationApplicationService(
             SpecificationRepository repository,
+            SubstitutionRepository substitutionRepository,
             OrganizationContext organizationContext,
             AssemblyService assemblyService,
             PartService partService,
@@ -68,6 +75,7 @@ public class SpecificationApplicationService implements SpecificationService {
             VzkService vzkService,
             SpecificationMapper mapper) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
+        this.substitutionRepository = Objects.requireNonNull(substitutionRepository, "substitutionRepository must not be null");
         this.organizationContext = Objects.requireNonNull(organizationContext, "organizationContext must not be null");
         this.assemblyService = Objects.requireNonNull(assemblyService, "assemblyService must not be null");
         this.partService = Objects.requireNonNull(partService, "partService must not be null");
@@ -86,7 +94,7 @@ public class SpecificationApplicationService implements SpecificationService {
                 .map(Specification::rows)
                 .orElseGet(List::of)
                 .stream()
-                .map(mapper::toView)
+                .map(row -> mapper.toView(row, hasSubstitutes(organizationId, assemblyId, row)))
                 .toList();
     }
 
@@ -101,7 +109,7 @@ public class SpecificationApplicationService implements SpecificationService {
                 .orElseGet(() -> Specification.create(organizationId, assemblyId));
         specification.addRow(request.item(), quantity);
         repository.save(specification);
-        return new SpecificationRowView(request.item(), quantity.value());
+        return new SpecificationRowView(request.item(), quantity.value(), false);
     }
 
     @Override
@@ -127,6 +135,7 @@ public class SpecificationApplicationService implements SpecificationService {
                 .orElseThrow(() -> new RowNotFoundException(request.item()));
         specification.removeRow(request.item());
         repository.save(specification);
+        substitutionRepository.delete(organizationId, assemblyId, request.item());
     }
 
     @Override
@@ -144,6 +153,9 @@ public class SpecificationApplicationService implements SpecificationService {
             newSpecification.addRow(row.item(), row.quantity());
         }
         repository.save(newSpecification);
+        for (SpecificationRow row : sourceRows) {
+            copySubstitutes(organizationId, sourceAssemblyId, newAssembly.id(), row);
+        }
         return newAssembly;
     }
 
@@ -221,5 +233,75 @@ public class SpecificationApplicationService implements SpecificationService {
      */
     private void requireAssembly(AssemblyId assemblyId) {
         assemblyService.get(assemblyId);
+    }
+
+    @Override
+    public List<CatalogItemReference> listSubstitutes(AssemblyId assemblyId, CatalogItemReference item) {
+        Objects.requireNonNull(assemblyId, "assemblyId must not be null");
+        Objects.requireNonNull(item, "item must not be null");
+        OrganizationId organizationId = organizationContext.requiredOrganizationId();
+        requireAssembly(assemblyId);
+        requireRow(organizationId, assemblyId, item);
+        return substitutionRepository.findById(organizationId, assemblyId, item)
+                .map(Substitution::substitutes)
+                .orElseGet(List::of);
+    }
+
+    @Override
+    public CatalogItemReference addSubstitute(AssemblyId assemblyId, AddSubstituteRequest request) {
+        Objects.requireNonNull(assemblyId, "assemblyId must not be null");
+        Objects.requireNonNull(request, "request must not be null");
+        OrganizationId organizationId = organizationContext.requiredOrganizationId();
+        requireAssembly(assemblyId);
+        requireRow(organizationId, assemblyId, request.item());
+        Substitution substitution = substitutionRepository
+                .findById(organizationId, assemblyId, request.item())
+                .orElseGet(() -> Substitution.create(organizationId, assemblyId, request.item()));
+        substitution.addSubstitute(request.substituteRef());
+        substitutionRepository.save(substitution);
+        return request.substituteRef();
+    }
+
+    @Override
+    public void removeSubstitute(AssemblyId assemblyId, RemoveSubstituteRequest request) {
+        Objects.requireNonNull(assemblyId, "assemblyId must not be null");
+        Objects.requireNonNull(request, "request must not be null");
+        OrganizationId organizationId = organizationContext.requiredOrganizationId();
+        requireAssembly(assemblyId);
+        requireRow(organizationId, assemblyId, request.item());
+        Substitution substitution = substitutionRepository
+                .findById(organizationId, assemblyId, request.item())
+                .orElseThrow(() -> new SubstituteNotFoundException(request.substituteRef()));
+        substitution.removeSubstitute(request.substituteRef());
+        substitutionRepository.save(substitution);
+    }
+
+    private boolean hasSubstitutes(OrganizationId organizationId, AssemblyId assemblyId, SpecificationRow row) {
+        return substitutionRepository.findById(organizationId, assemblyId, row.item())
+                .map(substitution -> !substitution.substitutes().isEmpty())
+                .orElse(false);
+    }
+
+    private void requireRow(OrganizationId organizationId, AssemblyId assemblyId, CatalogItemReference item) {
+        Specification specification = repository.findById(organizationId, assemblyId).orElse(null);
+        boolean found = specification != null
+                && specification.rows().stream().anyMatch(row -> row.item().equals(item));
+        if (!found) {
+            throw new RowNotFoundException(item);
+        }
+    }
+
+    private void copySubstitutes(
+            OrganizationId organizationId,
+            AssemblyId sourceAssemblyId,
+            AssemblyId targetAssemblyId,
+            SpecificationRow row) {
+        substitutionRepository.findById(organizationId, sourceAssemblyId, row.item()).ifPresent(source -> {
+            Substitution target = Substitution.create(organizationId, targetAssemblyId, row.item());
+            for (CatalogItemReference substitute : source.substitutes()) {
+                target.addSubstitute(substitute);
+            }
+            substitutionRepository.save(target);
+        });
     }
 }

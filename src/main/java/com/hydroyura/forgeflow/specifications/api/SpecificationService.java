@@ -42,4 +42,19 @@ public interface SpecificationService {
      * просуммированным количеством, отсортированные по номеру.
      */
     List<FlatBomItem> flatten(AssemblyId assemblyId);
+
+    /**
+     * Возвращает список доп. замен существующей строки текущей организации.
+     */
+    List<CatalogItemReference> listSubstitutes(AssemblyId assemblyId, CatalogItemReference item);
+
+    /**
+     * Добавляет доп. замену к существующей строке и возвращает её ссылку.
+     */
+    CatalogItemReference addSubstitute(AssemblyId assemblyId, AddSubstituteRequest request);
+
+    /**
+     * Удаляет доп. замену у существующей строки.
+     */
+    void removeSubstitute(AssemblyId assemblyId, RemoveSubstituteRequest request);
 }

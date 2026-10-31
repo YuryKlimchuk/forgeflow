@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SpecificationDetail from "./SpecificationDetail";
@@ -12,7 +12,15 @@ const PART: CatalogEntry = {
   updatedAt: "2026-01-01T00:00:00Z",
 };
 
-const ROW = { item: { type: "PART", id: "part-1" }, quantity: 3 };
+const SUBSTITUTE_PART: CatalogEntry = {
+  id: { value: "part-2" },
+  number: "Д-0002",
+  name: "Замена",
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
+
+const ROW = { item: { type: "PART", id: "part-1" }, quantity: 3, hasSubstitutes: false };
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -235,6 +243,98 @@ describe("SpecificationDetail", () => {
     await userEvent.click(screen.getByRole("button", { name: "Плоская структура" }));
 
     expect(await screen.findByText(/обнаружен цикл/)).toBeInTheDocument();
+  });
+
+  it("показывает звёздочку у строки с доп. заменами", async () => {
+    mockFetch(defaultCatalog(), {
+      "GET /api/v1/specifications/A-1/rows": jsonResponse(200, [{ ...ROW, hasSubstitutes: true }]),
+    });
+
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
+    await screen.findByText("Д-0001");
+
+    expect(screen.getByRole("button", { name: "Заменители" })).toBeInTheDocument();
+  });
+
+  it("открывает модалку со списком заменителей", async () => {
+    mockFetch(
+      { PART: [PART, SUBSTITUTE_PART], ASSEMBLY: [], BUY: [], STANDART: [], VZK: [] },
+      {
+        "GET /api/v1/specifications/A-1/rows": jsonResponse(200, [{ ...ROW, hasSubstitutes: true }]),
+        "GET /api/v1/specifications/A-1/substitutes?itemType=PART&itemId=part-1":
+          jsonResponse(200, [{ type: "PART", id: "part-2" }]),
+      },
+    );
+
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
+    await screen.findByText("Д-0001");
+
+    await userEvent.click(screen.getByRole("button", { name: "Заменители" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(await within(dialog).findByText(/Д-0002/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Замена/)).toBeInTheDocument();
+  });
+
+  it("удаляет заменитель из модалки", async () => {
+    const fetchMock = mockFetch(
+      { PART: [PART, SUBSTITUTE_PART], ASSEMBLY: [], BUY: [], STANDART: [], VZK: [] },
+      {
+        "GET /api/v1/specifications/A-1/rows": jsonResponse(200, [{ ...ROW, hasSubstitutes: true }]),
+        "GET /api/v1/specifications/A-1/substitutes?itemType=PART&itemId=part-1":
+          jsonResponse(200, [{ type: "PART", id: "part-2" }]),
+        "DELETE /api/v1/specifications/A-1/substitutes": jsonResponse(204, undefined),
+      },
+    );
+
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
+    await screen.findByText("Д-0001");
+    await userEvent.click(screen.getByRole("button", { name: "Заменители" }));
+    const dialog = screen.getByRole("dialog");
+    await within(dialog).findByText(/Д-0002/);
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/specifications/A-1/substitutes",
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
+  });
+
+  it("добавляет однотипного заменителя из модалки", async () => {
+    const fetchMock = mockFetch(
+      { PART: [PART, SUBSTITUTE_PART], ASSEMBLY: [], BUY: [], STANDART: [], VZK: [] },
+      {
+        "GET /api/v1/specifications/A-1/rows": jsonResponse(200, [{ ...ROW, hasSubstitutes: true }]),
+        "GET /api/v1/specifications/A-1/substitutes?itemType=PART&itemId=part-1":
+          jsonResponse(200, []),
+        "POST /api/v1/specifications/A-1/substitutes": jsonResponse(201, { type: "PART", id: "part-2" }),
+      },
+    );
+
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
+    await screen.findByText("Д-0001");
+    await userEvent.click(screen.getByRole("button", { name: "Заменители" }));
+    const dialog = screen.getByRole("dialog");
+    await within(dialog).findByText("Замены не заданы");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Д-0002 — Замена" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Добавить замену" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/specifications/A-1/substitutes",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            item: { type: "PART", id: "part-1" },
+            substituteRef: { type: "PART", id: "part-2" },
+          }),
+        }),
+      );
+    });
   });
 
   it("вызывает onBack", async () => {

@@ -88,6 +88,12 @@ export interface CatalogItemReference {
 export interface SpecificationRow {
   item: CatalogItemReference;
   quantity: number;
+  hasSubstitutes: boolean;
+}
+
+export interface SubstituteRequest {
+  item: CatalogItemReference;
+  substituteRef: CatalogItemReference;
 }
 
 export interface FlatBomItem {
@@ -173,6 +179,44 @@ export const specificationApi = {
   async flat(assemblyId: string): Promise<FlatBomItem[]> {
     return toJsonOrThrow<FlatBomItem[]>(
       await fetch(`/api/v1/specifications/${assemblyId}/flat`),
+    );
+  },
+
+  async listSubstitutes(
+    assemblyId: string,
+    item: CatalogItemReference,
+  ): Promise<CatalogItemReference[]> {
+    const params = new URLSearchParams({ itemType: item.type, itemId: item.id });
+    return toJsonOrThrow<CatalogItemReference[]>(
+      await fetch(`/api/v1/specifications/${assemblyId}/substitutes?${params}`),
+    );
+  },
+
+  async addSubstitute(
+    assemblyId: string,
+    item: CatalogItemReference,
+    substituteRef: CatalogItemReference,
+  ): Promise<CatalogItemReference> {
+    return toJsonOrThrow<CatalogItemReference>(
+      await fetch(`/api/v1/specifications/${assemblyId}/substitutes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item, substituteRef } satisfies SubstituteRequest),
+      }),
+    );
+  },
+
+  async removeSubstitute(
+    assemblyId: string,
+    item: CatalogItemReference,
+    substituteRef: CatalogItemReference,
+  ): Promise<void> {
+    return toJsonOrThrow<void>(
+      await fetch(`/api/v1/specifications/${assemblyId}/substitutes`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item, substituteRef } satisfies SubstituteRequest),
+      }),
     );
   },
 };

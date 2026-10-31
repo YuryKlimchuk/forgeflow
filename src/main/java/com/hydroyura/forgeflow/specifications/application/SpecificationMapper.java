@@ -8,7 +8,7 @@ import com.hydroyura.forgeflow.specifications.domain.SpecificationRow;
  */
 public class SpecificationMapper {
 
-    public SpecificationRowView toView(SpecificationRow row) {
-        return new SpecificationRowView(row.item(), row.quantity().value());
+    public SpecificationRowView toView(SpecificationRow row, boolean hasSubstitutes) {
+        return new SpecificationRowView(row.item(), row.quantity().value(), hasSubstitutes);
     }
 }
