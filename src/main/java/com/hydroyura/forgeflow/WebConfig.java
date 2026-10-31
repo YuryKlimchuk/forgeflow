@@ -28,6 +28,7 @@ import com.hydroyura.forgeflow.specifications.application.SpecificationApplicati
 import com.hydroyura.forgeflow.specifications.application.SpecificationMapper;
 import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
+import com.hydroyura.forgeflow.organizations.api.OrganizationService;
 import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
 import com.hydroyura.forgeflow.organizations.application.OrganizationApplicationService;
@@ -296,17 +297,33 @@ public class WebConfig {
     @Bean
     public SeedProperties seedProperties(
             @Value("${forgeflow.seed.enabled:true}") boolean enabled,
-            @Value("${forgeflow.seed.data-file:seed-data/catalog.json}") String dataFile) {
-        return new SeedProperties(enabled, dataFile);
+            @Value("${forgeflow.seed.data-file:seed-data/catalog.json}") String dataFile,
+            @Value("${forgeflow.seed.specifications-file:seed-data/specifications.json}") String specificationsFile) {
+        return new SeedProperties(enabled, dataFile, specificationsFile);
     }
 
     @Bean
     public DataSeeder dataSeeder(
             PartRepository partRepository,
             AssemblyRepository assemblyRepository,
+            BuyRepository buyRepository,
+            StandartRepository standartRepository,
+            VzkRepository vzkRepository,
+            SpecificationRepository specificationRepository,
+            OrganizationService organizationService,
             OrganizationId demoOrganizationId,
             SeedProperties seedProperties,
             ObjectMapper objectMapper) {
-        return new DataSeeder(partRepository, assemblyRepository, demoOrganizationId, seedProperties, objectMapper);
+        return new DataSeeder(
+                partRepository,
+                assemblyRepository,
+                buyRepository,
+                standartRepository,
+                vzkRepository,
+                specificationRepository,
+                organizationService,
+                demoOrganizationId,
+                seedProperties,
+                objectMapper);
     }
 }

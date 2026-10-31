@@ -1,9 +1,12 @@
 package com.hydroyura.forgeflow;
 
 /**
- * Тип записи seed-данных: сборочная единица или деталь.
+ * Тип записи seed-данных каталога.
  */
 public enum SeedEntryType {
     ASSEMBLY,
-    PART
+    PART,
+    BUY,
+    STANDART,
+    VZK
 }
