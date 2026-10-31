@@ -15,7 +15,7 @@ public class Buy {
     private final BuyId id;
 
     private final String number;
-    private final String name;
+    private String name;
     private final OrganizationId organizationId;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -41,6 +41,11 @@ public class Buy {
         Instant now = Instant.now();
         this.deletedAt = now;
         this.updatedAt = now;
+    }
+
+    public void rename(String newName) {
+        this.name = requireNotBlank(newName, "name");
+        this.updatedAt = Instant.now();
     }
 
     private static String requireNotBlank(String value, String field) {

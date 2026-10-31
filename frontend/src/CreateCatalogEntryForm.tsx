@@ -4,7 +4,7 @@ interface Props {
   onCreate: (request: { number: string; name: string }) => Promise<boolean>;
 }
 
-export default function CreatePartForm({ onCreate }: Props) {
+export default function CreateCatalogEntryForm({ onCreate }: Props) {
   const [number, setNumber] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -28,7 +28,7 @@ export default function CreatePartForm({ onCreate }: Props) {
       <input
         value={number}
         onChange={(e) => setNumber(e.target.value)}
-        placeholder="Номер (например P-100)"
+        placeholder="Номер"
         aria-label="Номер"
       />
       <input

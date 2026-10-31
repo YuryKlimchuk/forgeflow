@@ -1,16 +1,18 @@
-export interface PartId {
-  value: string;
+export interface CatalogTypeConfig {
+  key: string;
+  label: string;
+  endpoint: string;
 }
 
-export interface PartView {
-  id: PartId;
+export interface CatalogEntry {
+  id: { value: string };
   number: string;
   name: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreatePartRequest {
+export interface CreateCatalogEntryRequest {
   number: string;
   name: string;
 }
@@ -30,7 +32,18 @@ export class ApiClientError extends Error {
   }
 }
 
-const BASE_URL = "/api/v1/parts";
+/**
+ * Конфигурация пяти типов каталога: каждая вкладка отправляет запросы на
+ * собственный endpoint, а список/создание/переименование/удаление используют
+ * один общий клиент.
+ */
+export const CATALOG_TYPES: CatalogTypeConfig[] = [
+  { key: "parts", label: "Детали", endpoint: "/api/v1/parts" },
+  { key: "assemblies", label: "Сборки", endpoint: "/api/v1/assemblies" },
+  { key: "buys", label: "Покупные", endpoint: "/api/v1/buys" },
+  { key: "standarts", label: "Стандартные", endpoint: "/api/v1/standarts" },
+  { key: "vzks", label: "ВЗК", endpoint: "/api/v1/vzks" },
+];
 
 async function toJsonOrThrow<T>(response: Response): Promise<T> {
   if (response.ok) {
@@ -49,30 +62,33 @@ async function toJsonOrThrow<T>(response: Response): Promise<T> {
   throw new ApiClientError(response.status, body.error, body.message);
 }
 
-export const api = {
-  async list(): Promise<PartView[]> {
-    return toJsonOrThrow<PartView[]>(await fetch(BASE_URL));
+export const catalogApi = {
+  async list(endpoint: string): Promise<CatalogEntry[]> {
+    return toJsonOrThrow<CatalogEntry[]>(await fetch(endpoint));
   },
-  async create(request: CreatePartRequest): Promise<PartView> {
-    return toJsonOrThrow<PartView>(
-      await fetch(BASE_URL, {
+
+  async create(endpoint: string, request: CreateCatalogEntryRequest): Promise<CatalogEntry> {
+    return toJsonOrThrow<CatalogEntry>(
+      await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       }),
     );
   },
-  async rename(id: string, name: string): Promise<void> {
+
+  async rename(endpoint: string, id: string, name: string): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`${BASE_URL}/${id}/name`, {
+      await fetch(`${endpoint}/${id}/name`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       }),
     );
   },
-  async remove(id: string): Promise<void> {
-    return toJsonOrThrow<void>(await fetch(`${BASE_URL}/${id}`, { method: "DELETE" }));
+
+  async remove(endpoint: string, id: string): Promise<void> {
+    return toJsonOrThrow<void>(await fetch(`${endpoint}/${id}`, { method: "DELETE" }));
   },
 };
 
@@ -80,9 +96,9 @@ export function humanizeError(error: unknown): string {
   if (error instanceof ApiClientError) {
     switch (error.code) {
       case "duplicate":
-        return "Номер уже занят другой деталью";
+        return "Номер уже занят";
       case "not_found":
-        return "Деталь не найдена";
+        return "Запись не найдена";
       case "bad_request":
         return "Некорректный запрос";
       default:

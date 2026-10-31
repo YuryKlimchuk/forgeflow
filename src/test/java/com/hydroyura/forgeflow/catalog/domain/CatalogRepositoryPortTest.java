@@ -28,48 +28,30 @@ class CatalogRepositoryPortTest {
 
     @Test
     void assemblyRepositoryPort() {
-        assertSaveDeletePort(AssemblyRepository.class, Assembly.class, AssemblyId.class);
+        assertCrudPort(AssemblyRepository.class, Assembly.class, AssemblyId.class);
     }
 
     @Test
     void buyRepositoryPort() {
-        assertSaveDeletePort(BuyRepository.class, Buy.class, BuyId.class);
+        assertCrudPort(BuyRepository.class, Buy.class, BuyId.class);
     }
 
     @Test
     void standartRepositoryPort() {
-        assertSaveDeletePort(StandartRepository.class, Standart.class, StandartId.class);
+        assertCrudPort(StandartRepository.class, Standart.class, StandartId.class);
     }
 
     @Test
     void vzkRepositoryPort() {
-        assertSaveDeletePort(VzkRepository.class, Vzk.class, VzkId.class);
+        assertCrudPort(VzkRepository.class, Vzk.class, VzkId.class);
     }
 
     @Test
     void partRepositoryPort() {
-        assertThat(PartRepository.class.isInterface()).isTrue();
-        assertThat(PartRepository.class.getPackageName()).startsWith("com.hydroyura.forgeflow.catalog.domain");
-        assertThat(PartRepository.class.getAnnotations()).isEmpty();
-
-        Method save = declaredMethod(PartRepository.class, "save");
-        assertThat(save.getReturnType()).isEqualTo(void.class);
-        assertThat(save.getParameterTypes()).containsExactly(Part.class);
-
-        Method findById = declaredMethod(PartRepository.class, "findById");
-        assertThat(findById.getReturnType()).isEqualTo(Optional.class);
-        assertThat(findById.getParameterTypes()).containsExactly(PartId.class, OrganizationId.class);
-
-        Method findAll = declaredMethod(PartRepository.class, "findAll");
-        assertThat(findAll.getReturnType()).isEqualTo(List.class);
-        assertThat(findAll.getParameterTypes()).containsExactly(OrganizationId.class);
-
-        Method existsByNumber = declaredMethod(PartRepository.class, "existsByNumber");
-        assertThat(existsByNumber.getReturnType()).isEqualTo(boolean.class);
-        assertThat(existsByNumber.getParameterTypes()).containsExactly(String.class, OrganizationId.class);
+        assertCrudPort(PartRepository.class, Part.class, PartId.class);
     }
 
-    private static void assertSaveDeletePort(Class<?> portClass, Class<?> entityClass, Class<?> idClass) {
+    private static void assertCrudPort(Class<?> portClass, Class<?> entityClass, Class<?> idClass) {
         assertThat(portClass.isInterface()).isTrue();
         assertThat(portClass.getPackageName()).startsWith("com.hydroyura.forgeflow.catalog.domain");
         assertThat(portClass.getAnnotations()).isEmpty();
@@ -78,9 +60,19 @@ class CatalogRepositoryPortTest {
         assertThat(save.getReturnType()).isEqualTo(void.class);
         assertThat(save.getParameterTypes()).containsExactly(entityClass);
 
-        Method delete = declaredMethod(portClass, "delete");
-        assertThat(delete.getReturnType()).isEqualTo(void.class);
-        assertThat(delete.getParameterTypes()).containsExactly(idClass);
+        Method findById = declaredMethod(portClass, "findById");
+        assertThat(findById.getReturnType()).isEqualTo(Optional.class);
+        assertThat(findById.getParameterTypes()).containsExactly(idClass, OrganizationId.class);
+
+        Method findAll = declaredMethod(portClass, "findAll");
+        assertThat(findAll.getReturnType()).isEqualTo(List.class);
+        assertThat(findAll.getParameterTypes()).containsExactly(OrganizationId.class);
+
+        Method existsByNumber = declaredMethod(portClass, "existsByNumber");
+        assertThat(existsByNumber.getReturnType()).isEqualTo(boolean.class);
+        assertThat(existsByNumber.getParameterTypes()).containsExactly(String.class, OrganizationId.class);
+
+        assertThat(declaredMethods(portClass)).containsExactlyInAnyOrder("save", "findById", "findAll", "existsByNumber");
     }
 
     private static Method declaredMethod(Class<?> portClass, String name) {
@@ -88,5 +80,11 @@ class CatalogRepositoryPortTest {
                 .filter(method -> method.getName().equals(name))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private static List<String> declaredMethods(Class<?> portClass) {
+        return Arrays.stream(portClass.getDeclaredMethods())
+                .map(Method::getName)
+                .toList();
     }
 }

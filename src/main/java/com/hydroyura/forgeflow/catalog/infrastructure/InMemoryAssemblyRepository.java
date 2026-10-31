@@ -3,6 +3,9 @@ package com.hydroyura.forgeflow.catalog.infrastructure;
 import com.hydroyura.forgeflow.catalog.api.AssemblyId;
 import com.hydroyura.forgeflow.catalog.domain.assembly.Assembly;
 import com.hydroyura.forgeflow.catalog.domain.assembly.AssemblyRepository;
+import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,20 +23,28 @@ public class InMemoryAssemblyRepository implements AssemblyRepository {
     }
 
     @Override
-    public void delete(AssemblyId id) {
+    public Optional<Assembly> findById(AssemblyId id, OrganizationId organizationId) {
         Assembly assembly = assemblies.get(id);
-        if (assembly != null) {
-            assembly.markDeleted();
+        if (assembly == null || !assembly.getOrganizationId().equals(organizationId) || assembly.getDeletedAt() != null) {
+            return Optional.empty();
         }
+        return Optional.of(assembly);
     }
 
-    /** Диагностика для тестов и отладки (не расширяет доменный порт). */
-    public Optional<Assembly> findById(AssemblyId id) {
-        return Optional.ofNullable(assemblies.get(id));
+    @Override
+    public List<Assembly> findAll(OrganizationId organizationId) {
+        return assemblies.values().stream()
+                .filter(assembly -> assembly.getOrganizationId().equals(organizationId))
+                .filter(assembly -> assembly.getDeletedAt() == null)
+                .sorted(Comparator.comparing(Assembly::getNumber))
+                .toList();
     }
 
-    /** Диагностика для тестов и отладки (не расширяет доменный порт). */
-    public java.util.List<Assembly> findAll() {
-        return java.util.List.copyOf(assemblies.values());
+    @Override
+    public boolean existsByNumber(String number, OrganizationId organizationId) {
+        return assemblies.values().stream()
+                .anyMatch(assembly -> assembly.getOrganizationId().equals(organizationId)
+                        && assembly.getNumber().equals(number)
+                        && assembly.getDeletedAt() == null);
     }
 }

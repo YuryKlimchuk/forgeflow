@@ -37,6 +37,26 @@ body {
   padding: 0 24px;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tab-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 .create-form {
   display: flex;
   gap: 8px;
@@ -68,20 +88,20 @@ button:disabled {
   cursor: default;
 }
 
-.parts-table {
+.catalog-table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
 }
 
-.parts-table th,
-.parts-table td {
+.catalog-table th,
+.catalog-table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
-.parts-table th {
+.catalog-table th {
   background: var(--surface);
   font-weight: 600;
 }

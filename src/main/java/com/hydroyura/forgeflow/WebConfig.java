@@ -1,11 +1,29 @@
 package com.hydroyura.forgeflow;
 
+import com.hydroyura.forgeflow.catalog.application.AssemblyApplicationService;
+import com.hydroyura.forgeflow.catalog.application.AssemblyMapper;
+import com.hydroyura.forgeflow.catalog.application.BuyApplicationService;
+import com.hydroyura.forgeflow.catalog.application.BuyMapper;
 import com.hydroyura.forgeflow.catalog.application.PartApplicationService;
 import com.hydroyura.forgeflow.catalog.application.PartMapper;
+import com.hydroyura.forgeflow.catalog.application.StandartApplicationService;
+import com.hydroyura.forgeflow.catalog.application.StandartMapper;
+import com.hydroyura.forgeflow.catalog.application.VzkApplicationService;
+import com.hydroyura.forgeflow.catalog.application.VzkMapper;
+import com.hydroyura.forgeflow.catalog.api.AssemblyService;
+import com.hydroyura.forgeflow.catalog.api.BuyService;
+import com.hydroyura.forgeflow.catalog.api.StandartService;
+import com.hydroyura.forgeflow.catalog.api.VzkService;
 import com.hydroyura.forgeflow.catalog.domain.assembly.AssemblyRepository;
+import com.hydroyura.forgeflow.catalog.domain.buy.BuyRepository;
 import com.hydroyura.forgeflow.catalog.domain.part.PartRepository;
+import com.hydroyura.forgeflow.catalog.domain.standart.StandartRepository;
+import com.hydroyura.forgeflow.catalog.domain.vzk.VzkRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryAssemblyRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryBuyRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryPartRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryStandartRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryVzkRepository;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
 import com.hydroyura.forgeflow.organizations.application.OrganizationApplicationService;
 import com.hydroyura.forgeflow.organizations.application.SubjectProvider;
@@ -23,6 +41,10 @@ import com.hydroyura.forgeflow.security.infrastructure.StubAuthenticatedUserProv
 import com.hydroyura.forgeflow.security.infrastructure.ThreadLocalOrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.web.AssemblyController;
+import com.hydroyura.forgeflow.web.BuyController;
+import com.hydroyura.forgeflow.web.StandartController;
+import com.hydroyura.forgeflow.web.VzkController;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,8 +70,43 @@ public class WebConfig {
     }
 
     @Bean
+    public BuyRepository buyRepository() {
+        return new InMemoryBuyRepository();
+    }
+
+    @Bean
+    public StandartRepository standartRepository() {
+        return new InMemoryStandartRepository();
+    }
+
+    @Bean
+    public VzkRepository vzkRepository() {
+        return new InMemoryVzkRepository();
+    }
+
+    @Bean
     public PartMapper partMapper() {
         return PartMapper.INSTANCE;
+    }
+
+    @Bean
+    public AssemblyMapper assemblyMapper() {
+        return AssemblyMapper.INSTANCE;
+    }
+
+    @Bean
+    public BuyMapper buyMapper() {
+        return BuyMapper.INSTANCE;
+    }
+
+    @Bean
+    public StandartMapper standartMapper() {
+        return StandartMapper.INSTANCE;
+    }
+
+    @Bean
+    public VzkMapper vzkMapper() {
+        return VzkMapper.INSTANCE;
     }
 
     @Bean
@@ -65,7 +122,7 @@ public class WebConfig {
     }
 
     @Bean
-    public AuthenticatedUserProvider authenticatedUserProvider() {
+    public StubAuthenticatedUserProvider authenticatedUserProvider() {
         return new StubAuthenticatedUserProvider();
     }
 
@@ -133,7 +190,63 @@ public class WebConfig {
         return new PartApplicationService(partRepository, organizationContext, partMapper, systemClock);
     }
 
+    @Bean
+    public AssemblyApplicationService assemblyService(
+            AssemblyRepository assemblyRepository,
+            OrganizationContext organizationContext,
+            AssemblyMapper assemblyMapper,
+            java.time.Clock systemClock) {
+        return new AssemblyApplicationService(assemblyRepository, organizationContext, assemblyMapper, systemClock);
+    }
+
+    @Bean
+    public BuyApplicationService buyService(
+            BuyRepository buyRepository,
+            OrganizationContext organizationContext,
+            BuyMapper buyMapper,
+            java.time.Clock systemClock) {
+        return new BuyApplicationService(buyRepository, organizationContext, buyMapper, systemClock);
+    }
+
+    @Bean
+    public StandartApplicationService standartService(
+            StandartRepository standartRepository,
+            OrganizationContext organizationContext,
+            StandartMapper standartMapper,
+            java.time.Clock systemClock) {
+        return new StandartApplicationService(standartRepository, organizationContext, standartMapper, systemClock);
+    }
+
+    @Bean
+    public VzkApplicationService vzkService(
+            VzkRepository vzkRepository,
+            OrganizationContext organizationContext,
+            VzkMapper vzkMapper,
+            java.time.Clock systemClock) {
+        return new VzkApplicationService(vzkRepository, organizationContext, vzkMapper, systemClock);
+    }
+
     // --- Web ---
+
+    @Bean
+    public AssemblyController assemblyController(AssemblyService assemblyService) {
+        return new AssemblyController(assemblyService);
+    }
+
+    @Bean
+    public BuyController buyController(BuyService buyService) {
+        return new BuyController(buyService);
+    }
+
+    @Bean
+    public StandartController standartController(StandartService standartService) {
+        return new StandartController(standartService);
+    }
+
+    @Bean
+    public VzkController vzkController(VzkService vzkService) {
+        return new VzkController(vzkService);
+    }
 
     @Bean
     public TenantContextFilter tenantContextFilter(OrganizationContextLifecycle lifecycle) {

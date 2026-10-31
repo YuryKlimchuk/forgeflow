@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { PartView } from "./api";
+import type { CatalogEntry } from "./api";
 
 interface Props {
-  parts: PartView[];
+  entries: CatalogEntry[];
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
@@ -11,17 +11,17 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("ru-RU");
 }
 
-export default function PartsTable({ parts, onRename, onDelete }: Props) {
+export default function CatalogTable({ entries, onRename, onDelete }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
 
-  if (parts.length === 0) {
-    return <p className="muted">Пока нет деталей. Создайте первую.</p>;
+  if (entries.length === 0) {
+    return <p className="muted">Пока нет записей. Создайте первую.</p>;
   }
 
-  const startEdit = (part: PartView) => {
-    setEditingId(part.id.value);
-    setDraftName(part.name);
+  const startEdit = (entry: CatalogEntry) => {
+    setEditingId(entry.id.value);
+    setDraftName(entry.name);
   };
 
   const saveEdit = async (id: string) => {
@@ -30,7 +30,7 @@ export default function PartsTable({ parts, onRename, onDelete }: Props) {
   };
 
   return (
-    <table className="parts-table">
+    <table className="catalog-table">
       <thead>
         <tr>
           <th>Номер</th>
@@ -40,34 +40,34 @@ export default function PartsTable({ parts, onRename, onDelete }: Props) {
         </tr>
       </thead>
       <tbody>
-        {parts.map((part) => (
-          <tr key={part.id.value}>
-            <td>{part.number}</td>
+        {entries.map((entry) => (
+          <tr key={entry.id.value}>
+            <td>{entry.number}</td>
             <td>
-              {editingId === part.id.value ? (
+              {editingId === entry.id.value ? (
                 <input
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
                   aria-label="Новое название"
                 />
               ) : (
-                part.name
+                entry.name
               )}
             </td>
-            <td>{formatDate(part.createdAt)}</td>
+            <td>{formatDate(entry.createdAt)}</td>
             <td className="actions">
-              {editingId === part.id.value ? (
+              {editingId === entry.id.value ? (
                 <>
-                  <button onClick={() => void saveEdit(part.id.value)}>Сохранить</button>
+                  <button onClick={() => void saveEdit(entry.id.value)}>Сохранить</button>
                   <button onClick={() => setEditingId(null)}>Отмена</button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => startEdit(part)}>Переименовать</button>
+                  <button onClick={() => startEdit(entry)}>Переименовать</button>
                   <button
                     onClick={() => {
-                      if (window.confirm(`Удалить деталь «${part.number}»?`)) {
-                        void onDelete(part.id.value);
+                      if (window.confirm(`Удалить запись «${entry.number}»?`)) {
+                        void onDelete(entry.id.value);
                       }
                     }}
                   >

@@ -1,7 +1,16 @@
 package com.hydroyura.forgeflow;
 
+import com.hydroyura.forgeflow.catalog.application.AssemblyNotFoundException;
+import com.hydroyura.forgeflow.catalog.application.BuyNotFoundException;
+import com.hydroyura.forgeflow.catalog.application.DuplicateAssemblyNumberException;
+import com.hydroyura.forgeflow.catalog.application.DuplicateBuyNumberException;
+import com.hydroyura.forgeflow.catalog.application.CatalogException;
 import com.hydroyura.forgeflow.catalog.application.DuplicatePartNumberException;
+import com.hydroyura.forgeflow.catalog.application.DuplicateStandartNumberException;
+import com.hydroyura.forgeflow.catalog.application.DuplicateVzkNumberException;
 import com.hydroyura.forgeflow.catalog.application.PartNotFoundException;
+import com.hydroyura.forgeflow.catalog.application.StandartNotFoundException;
+import com.hydroyura.forgeflow.catalog.application.VzkNotFoundException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,6 +32,28 @@ public class RestExceptionHandler {
     @ExceptionHandler(DuplicatePartNumberException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleDuplicate(DuplicatePartNumberException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({
+            AssemblyNotFoundException.class,
+            BuyNotFoundException.class,
+            StandartNotFoundException.class,
+            VzkNotFoundException.class
+    })
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleCatalogNotFound(CatalogException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({
+            DuplicateAssemblyNumberException.class,
+            DuplicateBuyNumberException.class,
+            DuplicateStandartNumberException.class,
+            DuplicateVzkNumberException.class
+    })
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleCatalogDuplicate(CatalogException e) {
         return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
     }
 

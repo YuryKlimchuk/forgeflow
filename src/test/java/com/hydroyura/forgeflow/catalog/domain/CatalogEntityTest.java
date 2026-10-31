@@ -60,6 +60,14 @@ class CatalogEntityTest {
                 .isInstanceOf(NullPointerException.class);
 
         assertSoftDelete(assembly::markDeleted, assembly::getDeletedAt, assembly::getUpdatedAt);
+
+        assembly.rename("Новый узел");
+        assertThat(assembly.getName()).isEqualTo("Новый узел");
+        assertThat(assembly.getUpdatedAt()).isAfterOrEqualTo(UPDATED);
+        assertThatThrownBy(() -> assembly.rename("   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name");
+        assertThat(assembly.getName()).isEqualTo("Новый узел");
     }
 
     @Test
@@ -116,6 +124,14 @@ class CatalogEntityTest {
                 .isInstanceOf(NullPointerException.class);
 
         assertSoftDelete(buy::markDeleted, buy::getDeletedAt, buy::getUpdatedAt);
+
+        buy.rename("Новое покупное");
+        assertThat(buy.getName()).isEqualTo("Новое покупное");
+        assertThat(buy.getUpdatedAt()).isAfterOrEqualTo(UPDATED);
+        assertThatThrownBy(() -> buy.rename("   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name");
+        assertThat(buy.getName()).isEqualTo("Новое покупное");
     }
 
     @Test
@@ -144,6 +160,14 @@ class CatalogEntityTest {
                 .isInstanceOf(NullPointerException.class);
 
         assertSoftDelete(standart::markDeleted, standart::getDeletedAt, standart::getUpdatedAt);
+
+        standart.rename("Новый стандарт");
+        assertThat(standart.getName()).isEqualTo("Новый стандарт");
+        assertThat(standart.getUpdatedAt()).isAfterOrEqualTo(UPDATED);
+        assertThatThrownBy(() -> standart.rename("   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name");
+        assertThat(standart.getName()).isEqualTo("Новый стандарт");
     }
 
     @Test
@@ -172,6 +196,14 @@ class CatalogEntityTest {
                 .isInstanceOf(NullPointerException.class);
 
         assertSoftDelete(vzk::markDeleted, vzk::getDeletedAt, vzk::getUpdatedAt);
+
+        vzk.rename("Новая группа");
+        assertThat(vzk.getName()).isEqualTo("Новая группа");
+        assertThat(vzk.getUpdatedAt()).isAfterOrEqualTo(UPDATED);
+        assertThatThrownBy(() -> vzk.rename("   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name");
+        assertThat(vzk.getName()).isEqualTo("Новая группа");
     }
 
     private static void assertEntityStructure(Class<?> entityClass, Class<?> idClass) {

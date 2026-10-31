@@ -1,21 +1,31 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, humanizeError, type PartView } from "./api";
-import PartsTable from "./PartsTable";
-import CreatePartForm from "./CreatePartForm";
+import {
+  CATALOG_TYPES,
+  catalogApi,
+  humanizeError,
+  type CatalogEntry,
+  type CatalogTypeConfig,
+} from "./api";
+import CatalogTable from "./CatalogTable";
+import CreateCatalogEntryForm from "./CreateCatalogEntryForm";
 import "./App.css";
 
 type Status = "loading" | "ready" | "error";
 
 export default function App() {
-  const [parts, setParts] = useState<PartView[]>([]);
+  const [activeKey, setActiveKey] = useState(CATALOG_TYPES[0].key);
+  const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const activeType =
+    CATALOG_TYPES.find((type) => type.key === activeKey) ?? CATALOG_TYPES[0];
+
+  const load = useCallback(async (type: CatalogTypeConfig) => {
     setStatus("loading");
     setError(null);
     try {
-      setParts(await api.list());
+      setEntries(await catalogApi.list(type.endpoint));
       setStatus("ready");
     } catch (e) {
       setError(humanizeError(e));
@@ -24,14 +34,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(activeType);
+  }, [load, activeType]);
 
   const handleCreate = async (request: { number: string; name: string }): Promise<boolean> => {
     setError(null);
     try {
-      await api.create(request);
-      await load();
+      await catalogApi.create(activeType.endpoint, request);
+      await load(activeType);
       return true;
     } catch (e) {
       setError(humanizeError(e));
@@ -42,8 +52,8 @@ export default function App() {
   const handleRename = async (id: string, name: string) => {
     setError(null);
     try {
-      await api.rename(id, name);
-      await load();
+      await catalogApi.rename(activeType.endpoint, id, name);
+      await load(activeType);
     } catch (e) {
       setError(humanizeError(e));
     }
@@ -52,8 +62,8 @@ export default function App() {
   const handleDelete = async (id: string) => {
     setError(null);
     try {
-      await api.remove(id);
-      await load();
+      await catalogApi.remove(activeType.endpoint, id);
+      await load(activeType);
     } catch (e) {
       setError(humanizeError(e));
     }
@@ -65,11 +75,22 @@ export default function App() {
         <h1>ForgeFlow — Каталог</h1>
       </header>
       <main className="app-main">
+        <nav className="tabs" aria-label="Типы каталога">
+          {CATALOG_TYPES.map((type) => (
+            <button
+              key={type.key}
+              className={type.key === activeKey ? "tab tab-active" : "tab"}
+              onClick={() => setActiveKey(type.key)}
+            >
+              {type.label}
+            </button>
+          ))}
+        </nav>
         {error && <div className="banner banner-error">{error}</div>}
-        <CreatePartForm onCreate={handleCreate} />
+        <CreateCatalogEntryForm onCreate={handleCreate} />
         {status === "loading" && <p className="muted">Загрузка…</p>}
         {status === "ready" && (
-          <PartsTable parts={parts} onRename={handleRename} onDelete={handleDelete} />
+          <CatalogTable entries={entries} onRename={handleRename} onDelete={handleDelete} />
         )}
         {status === "error" && !error && <p className="muted">Не удалось загрузить список.</p>}
       </main>

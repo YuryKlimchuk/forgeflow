@@ -34,9 +34,9 @@ class DataSeederTest {
         DataSeeder seeder = new DataSeeder(parts, assemblies, orgId, new SeedProperties(true, file.toString()), objectMapper);
         seeder.run();
 
-        assertThat(assemblies.findAll()).hasSize(1);
-        assertThat(assemblies.findAll().get(0).getNumber()).isEqualTo("А-1");
-        assertThat(assemblies.findAll().get(0).getOrganizationId()).isEqualTo(orgId);
+        assertThat(assemblies.findAll(orgId)).hasSize(1);
+        assertThat(assemblies.findAll(orgId).get(0).getNumber()).isEqualTo("А-1");
+        assertThat(assemblies.findAll(orgId).get(0).getOrganizationId()).isEqualTo(orgId);
 
         assertThat(parts.findAll(orgId)).hasSize(1);
         assertThat(parts.findAll(orgId).get(0).getNumber()).isEqualTo("П-1");
@@ -53,7 +53,7 @@ class DataSeederTest {
         DataSeeder seeder = new DataSeeder(parts, assemblies, orgId, new SeedProperties(false, file.toString()), objectMapper);
         seeder.run();
 
-        assertThat(assemblies.findAll()).isEmpty();
+        assertThat(assemblies.findAll(orgId)).isEmpty();
         assertThat(parts.findAll(orgId)).isEmpty();
     }
 
@@ -64,7 +64,7 @@ class DataSeederTest {
         DataSeeder seeder = new DataSeeder(parts, assemblies, orgId, new SeedProperties(true, missing.toString()), objectMapper);
         seeder.run();
 
-        assertThat(assemblies.findAll()).isEmpty();
+        assertThat(assemblies.findAll(orgId)).isEmpty();
         assertThat(parts.findAll(orgId)).isEmpty();
     }
 }
