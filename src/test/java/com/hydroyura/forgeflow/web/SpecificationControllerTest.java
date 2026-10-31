@@ -19,9 +19,11 @@ import com.hydroyura.forgeflow.specifications.api.CatalogItemReference;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemType;
 import com.hydroyura.forgeflow.specifications.api.ChangeQuantityRequest;
 import com.hydroyura.forgeflow.specifications.api.CopySpecificationRequest;
+import com.hydroyura.forgeflow.specifications.api.FlatBomItem;
 import com.hydroyura.forgeflow.specifications.api.RemoveRowRequest;
 import com.hydroyura.forgeflow.specifications.api.SpecificationRowView;
 import com.hydroyura.forgeflow.specifications.api.SpecificationService;
+import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
@@ -140,5 +142,26 @@ class SpecificationControllerTest {
                         .content("{\"item\":{\"type\":\"PART\",\"id\":\"" + ITEM_ID + "\"},\"quantity\":5}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void flat_returnsFlatList() throws Exception {
+        when(specificationService.flatten(any(AssemblyId.class)))
+                .thenReturn(List.of(new FlatBomItem("Д-0001", "Втулка", 11)));
+
+        mockMvc.perform(get("/api/v1/specifications/{assemblyId}/flat", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].number").value("Д-0001"))
+                .andExpect(jsonPath("$[0].quantity").value(11));
+    }
+
+    @Test
+    void flat_cycle_returns409() throws Exception {
+        when(specificationService.flatten(any(AssemblyId.class)))
+                .thenThrow(new BomCycleException(AssemblyId.generate()));
+
+        mockMvc.perform(get("/api/v1/specifications/{assemblyId}/flat", UUID.randomUUID()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("bom_cycle"));
     }
 }

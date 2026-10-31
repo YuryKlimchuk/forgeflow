@@ -36,4 +36,10 @@ public interface SpecificationService {
      * Копирует спецификацию в новую сборку с переданными номером и именем.
      */
     AssemblyView copy(AssemblyId sourceAssemblyId, CopySpecificationRequest request);
+
+    /**
+     * Возвращает плоский состав спецификации: только листовые элементы с
+     * просуммированным количеством, отсортированные по номеру.
+     */
+    List<FlatBomItem> flatten(AssemblyId assemblyId);
 }

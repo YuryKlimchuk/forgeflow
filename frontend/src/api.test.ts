@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CATALOG_TYPES, catalogApi, specificationApi, type CatalogItemReference } from "./api";
+import {
+  ApiClientError,
+  CATALOG_TYPES,
+  catalogApi,
+  humanizeSpecificationError,
+  specificationApi,
+  type CatalogItemReference,
+} from "./api";
 
 const ENTRY = {
   id: { value: "1" },
@@ -147,5 +154,20 @@ describe("specificationApi", () => {
       "/api/v1/specifications/A-1/copy",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ number: "B-1", name: "Новая" }) }),
     );
+  });
+
+  it("flat отправляет GET на /api/v1/specifications/{assemblyId}/flat", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, [{ number: "Д-0001", name: "Втулка", quantity: 11 }]),
+    );
+
+    await specificationApi.flat("A-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/specifications/A-1/flat");
+  });
+
+  it("humanizeSpecificationError сообщает о цикле для bom_cycle", () => {
+    expect(humanizeSpecificationError(new ApiClientError(409, "bom_cycle", "...")))
+      .toBe("В спецификации обнаружен цикл");
   });
 });

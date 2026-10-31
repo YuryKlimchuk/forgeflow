@@ -4,6 +4,7 @@ import {
   specificationApi,
   type CatalogItemReference,
   type CatalogItemType,
+  type FlatBomItem,
   type SpecificationRow,
 } from "./api";
 
@@ -27,6 +28,10 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
   const [copyNumber, setCopyNumber] = useState("");
   const [copyName, setCopyName] = useState("");
   const [copyResult, setCopyResult] = useState<string | null>(null);
+
+  const [flatItems, setFlatItems] = useState<FlatBomItem[] | null>(null);
+  const [flatStatus, setFlatStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [flatError, setFlatError] = useState<string | null>(null);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [draftQuantity, setDraftQuantity] = useState("");
@@ -103,6 +108,19 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
       setError(humanizeSpecificationError(e));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleFlat = async () => {
+    setFlatStatus("loading");
+    setFlatError(null);
+    setFlatItems(null);
+    try {
+      setFlatItems(await specificationApi.flat(assemblyId));
+      setFlatStatus("ready");
+    } catch (e) {
+      setFlatError(humanizeSpecificationError(e));
+      setFlatStatus("error");
     }
   };
 
@@ -215,6 +233,35 @@ export default function SpecificationDetail({ assemblyId, onBack }: Props) {
           {copyResult && <p className="muted">{copyResult}</p>}
         </>
       )}
+
+      <div className="flat-bom">
+        <h3>Плоская структура</h3>
+        <button onClick={() => void handleFlat()} disabled={flatStatus === "loading"}>
+          {flatStatus === "loading" ? "Разворачивание…" : "Плоская структура"}
+        </button>
+        {flatStatus === "loading" && <p className="muted">Разворачивание…</p>}
+        {flatStatus === "error" && <div className="banner banner-error">{flatError}</div>}
+        {flatStatus === "ready" && flatItems && (
+          <table className="catalog-table">
+            <thead>
+              <tr>
+                <th>Номер</th>
+                <th>Название</th>
+                <th>Количество</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flatItems.map((item) => (
+                <tr key={item.number}>
+                  <td>{item.number}</td>
+                  <td>{item.name}</td>
+                  <td>{item.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </section>
   );
 }

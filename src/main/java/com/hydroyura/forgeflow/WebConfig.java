@@ -12,6 +12,7 @@ import com.hydroyura.forgeflow.catalog.application.VzkApplicationService;
 import com.hydroyura.forgeflow.catalog.application.VzkMapper;
 import com.hydroyura.forgeflow.catalog.api.AssemblyService;
 import com.hydroyura.forgeflow.catalog.api.BuyService;
+import com.hydroyura.forgeflow.catalog.api.PartService;
 import com.hydroyura.forgeflow.catalog.api.StandartService;
 import com.hydroyura.forgeflow.catalog.api.VzkService;
 import com.hydroyura.forgeflow.catalog.domain.assembly.AssemblyRepository;
@@ -261,8 +262,14 @@ public class WebConfig {
             SpecificationRepository specificationRepository,
             OrganizationContext organizationContext,
             AssemblyService assemblyService,
+            PartService partService,
+            BuyService buyService,
+            StandartService standartService,
+            VzkService vzkService,
             SpecificationMapper specificationMapper) {
-        return new SpecificationApplicationService(specificationRepository, organizationContext, assemblyService, specificationMapper);
+        return new SpecificationApplicationService(
+                specificationRepository, organizationContext, assemblyService,
+                partService, buyService, standartService, vzkService, specificationMapper);
     }
 
     // --- Web ---

@@ -74,6 +74,12 @@ export interface SpecificationRow {
   quantity: number;
 }
 
+export interface FlatBomItem {
+  number: string;
+  name: string;
+  quantity: number;
+}
+
 export const specificationApi = {
   async list(assemblyId: string): Promise<SpecificationRow[]> {
     return toJsonOrThrow<SpecificationRow[]>(
@@ -126,6 +132,12 @@ export const specificationApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ number, name }),
       }),
+    );
+  },
+
+  async flat(assemblyId: string): Promise<FlatBomItem[]> {
+    return toJsonOrThrow<FlatBomItem[]>(
+      await fetch(`/api/v1/specifications/${assemblyId}/flat`),
     );
   },
 };
@@ -189,6 +201,8 @@ export function humanizeSpecificationError(error: unknown): string {
         return "Запись не найдена";
       case "bad_request":
         return "Некорректный запрос";
+      case "bom_cycle":
+        return "В спецификации обнаружен цикл";
       default:
         return error.message;
     }

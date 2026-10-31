@@ -5,6 +5,7 @@ import com.hydroyura.forgeflow.catalog.api.AssemblyView;
 import com.hydroyura.forgeflow.specifications.api.AddRowRequest;
 import com.hydroyura.forgeflow.specifications.api.ChangeQuantityRequest;
 import com.hydroyura.forgeflow.specifications.api.CopySpecificationRequest;
+import com.hydroyura.forgeflow.specifications.api.FlatBomItem;
 import com.hydroyura.forgeflow.specifications.api.RemoveRowRequest;
 import com.hydroyura.forgeflow.specifications.api.SpecificationRowView;
 import com.hydroyura.forgeflow.specifications.api.SpecificationService;
@@ -61,5 +62,10 @@ public class SpecificationController {
     @ResponseStatus(HttpStatus.CREATED)
     public AssemblyView copy(@PathVariable UUID sourceAssemblyId, @RequestBody CopySpecificationRequest request) {
         return specificationService.copy(AssemblyId.of(sourceAssemblyId), request);
+    }
+
+    @GetMapping("/{assemblyId}/flat")
+    public List<FlatBomItem> flat(@PathVariable UUID assemblyId) {
+        return specificationService.flatten(AssemblyId.of(assemblyId));
     }
 }

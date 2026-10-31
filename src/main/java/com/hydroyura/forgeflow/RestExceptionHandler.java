@@ -15,6 +15,7 @@ import com.hydroyura.forgeflow.organizations.application.OrganizationAccessDenie
 import com.hydroyura.forgeflow.organizations.application.OrganizationNotFoundException;
 import com.hydroyura.forgeflow.organizations.application.OrganizationsException;
 import com.hydroyura.forgeflow.organizations.application.OwnerRequiredException;
+import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
@@ -98,5 +99,11 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleSelfReference(SelfReferenceException e) {
         return Map.of("error", "bad_request", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(BomCycleException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleBomCycle(BomCycleException e) {
+        return Map.of("error", "bom_cycle", "message", String.valueOf(e.getMessage()));
     }
 }

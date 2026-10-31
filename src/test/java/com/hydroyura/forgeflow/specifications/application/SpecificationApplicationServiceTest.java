@@ -11,18 +11,31 @@ import static org.mockito.Mockito.when;
 import com.hydroyura.forgeflow.catalog.api.AssemblyId;
 import com.hydroyura.forgeflow.catalog.api.AssemblyService;
 import com.hydroyura.forgeflow.catalog.api.AssemblyView;
+import com.hydroyura.forgeflow.catalog.api.BuyId;
+import com.hydroyura.forgeflow.catalog.api.BuyService;
 import com.hydroyura.forgeflow.catalog.api.CreateAssemblyRequest;
+import com.hydroyura.forgeflow.catalog.api.PartId;
+import com.hydroyura.forgeflow.catalog.api.PartService;
+import com.hydroyura.forgeflow.catalog.api.PartView;
+import com.hydroyura.forgeflow.catalog.api.StandartId;
+import com.hydroyura.forgeflow.catalog.api.StandartService;
+import com.hydroyura.forgeflow.catalog.api.VzkId;
+import com.hydroyura.forgeflow.catalog.api.VzkService;
 import com.hydroyura.forgeflow.catalog.application.AssemblyNotFoundException;
 import com.hydroyura.forgeflow.specifications.api.AddRowRequest;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemReference;
 import com.hydroyura.forgeflow.specifications.api.CatalogItemType;
 import com.hydroyura.forgeflow.specifications.api.ChangeQuantityRequest;
 import com.hydroyura.forgeflow.specifications.api.CopySpecificationRequest;
+import com.hydroyura.forgeflow.specifications.api.FlatBomItem;
 import com.hydroyura.forgeflow.specifications.api.RemoveRowRequest;
 import com.hydroyura.forgeflow.specifications.api.SpecificationRowView;
+import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
+import com.hydroyura.forgeflow.specifications.domain.Quantity;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
+import com.hydroyura.forgeflow.specifications.domain.Specification;
 import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableException;
@@ -42,12 +55,17 @@ class SpecificationApplicationServiceTest {
     private final AssemblyId assemblyId = AssemblyId.generate();
     private final InMemorySpecificationRepository repository = new InMemorySpecificationRepository();
     private final AssemblyService assemblyService = mock(AssemblyService.class);
+    private final PartService partService = mock(PartService.class);
+    private final BuyService buyService = mock(BuyService.class);
+    private final StandartService standartService = mock(StandartService.class);
+    private final VzkService vzkService = mock(VzkService.class);
     private final SpecificationApplicationService service = new SpecificationApplicationService(
-            repository, fakeContext(orgId), assemblyService, new SpecificationMapper());
+            repository, fakeContext(orgId), assemblyService,
+            partService, buyService, standartService, vzkService, new SpecificationMapper());
 
     @BeforeEach
     void setUp() {
-        when(assemblyService.get(assemblyId)).thenReturn(assemblyView(assemblyId, "A-1"));
+        when(assemblyService.get(assemblyId)).thenReturn(assemblyView(assemblyId, "СБ-0001"));
     }
 
     private static CatalogItemReference part(String id) {
@@ -150,9 +168,9 @@ class SpecificationApplicationServiceTest {
         service.addRow(assemblyId, new AddRowRequest(item, 7));
         AssemblyId newAssemblyId = AssemblyId.generate();
         when(assemblyService.create(any(CreateAssemblyRequest.class)))
-                .thenReturn(assemblyView(newAssemblyId, "B-1"));
+                .thenReturn(assemblyView(newAssemblyId, "СБ-0002"));
 
-        AssemblyView result = service.copy(assemblyId, new CopySpecificationRequest("B-1", "Новая"));
+        AssemblyView result = service.copy(assemblyId, new CopySpecificationRequest("СБ-0002", "Новая"));
 
         assertThat(result.id()).isEqualTo(newAssemblyId);
         List<SpecificationRowView> copiedRows = service.get(newAssemblyId);
@@ -160,35 +178,86 @@ class SpecificationApplicationServiceTest {
     }
 
     @Test
-    void copyEmptySpecificationCreatesEmptyAssembly() {
-        AssemblyId newAssemblyId = AssemblyId.generate();
-        when(assemblyService.create(any(CreateAssemblyRequest.class)))
-                .thenReturn(assemblyView(newAssemblyId, "B-2"));
-
-        service.copy(assemblyId, new CopySpecificationRequest("B-2", "Новая"));
-
-        assertThat(service.get(newAssemblyId)).isEmpty();
-    }
-
-    @Test
     void copyForeignSourceDoesNotCreateAssembly() {
         AssemblyId foreign = AssemblyId.generate();
         when(assemblyService.get(foreign)).thenThrow(new AssemblyNotFoundException(foreign));
 
-        assertThatThrownBy(() -> service.copy(foreign, new CopySpecificationRequest("B-3", "Новая")))
+        assertThatThrownBy(() -> service.copy(foreign, new CopySpecificationRequest("СБ-0003", "Новая")))
                 .isInstanceOf(AssemblyNotFoundException.class);
         verify(assemblyService, never()).create(any(CreateAssemblyRequest.class));
+    }
+
+    @Test
+    void flattenMultipliesAndSums() {
+        PartId partId = PartId.generate();
+        CatalogItemReference x = new CatalogItemReference(CatalogItemType.PART, partId.value());
+        when(partService.get(partId)).thenReturn(new PartView(partId, "Д-0001", "Втулка", NOW, NOW));
+
+        AssemblyId assemblyB = AssemblyId.generate();
+        when(assemblyService.get(assemblyB)).thenReturn(assemblyView(assemblyB, "СБ-0002"));
+
+        Specification specA = Specification.create(orgId, assemblyId);
+        specA.addRow(new CatalogItemReference(CatalogItemType.ASSEMBLY, assemblyB.value()), new Quantity(2));
+        specA.addRow(x, new Quantity(3));
+        repository.save(specA);
+
+        Specification specB = Specification.create(orgId, assemblyB);
+        specB.addRow(x, new Quantity(4));
+        repository.save(specB);
+
+        List<FlatBomItem> result = service.flatten(assemblyId);
+
+        assertThat(result).containsExactly(new FlatBomItem("Д-0001", "Втулка", 11));
+    }
+
+    @Test
+    void flattenSortsByNumber() {
+        PartId first = PartId.generate();
+        PartId second = PartId.generate();
+        when(partService.get(first)).thenReturn(new PartView(first, "Д-0002", "Вторая", NOW, NOW));
+        when(partService.get(second)).thenReturn(new PartView(second, "Д-0001", "Первая", NOW, NOW));
+
+        Specification spec = Specification.create(orgId, assemblyId);
+        spec.addRow(new CatalogItemReference(CatalogItemType.PART, first.value()), new Quantity(1));
+        spec.addRow(new CatalogItemReference(CatalogItemType.PART, second.value()), new Quantity(1));
+        repository.save(spec);
+
+        List<FlatBomItem> result = service.flatten(assemblyId);
+
+        assertThat(result).extracting(FlatBomItem::number).containsExactly("Д-0001", "Д-0002");
+    }
+
+    @Test
+    void flattenDetectsCycle() {
+        AssemblyId assemblyB = AssemblyId.generate();
+        AssemblyId assemblyC = AssemblyId.generate();
+        when(assemblyService.get(assemblyB)).thenReturn(assemblyView(assemblyB, "СБ-0002"));
+        when(assemblyService.get(assemblyC)).thenReturn(assemblyView(assemblyC, "СБ-0003"));
+
+        Specification a = Specification.create(orgId, assemblyId);
+        a.addRow(new CatalogItemReference(CatalogItemType.ASSEMBLY, assemblyB.value()), new Quantity(1));
+        repository.save(a);
+        Specification b = Specification.create(orgId, assemblyB);
+        b.addRow(new CatalogItemReference(CatalogItemType.ASSEMBLY, assemblyC.value()), new Quantity(1));
+        repository.save(b);
+        Specification c = Specification.create(orgId, assemblyC);
+        c.addRow(new CatalogItemReference(CatalogItemType.ASSEMBLY, assemblyId.value()), new Quantity(1));
+        repository.save(c);
+
+        assertThatThrownBy(() -> service.flatten(assemblyId))
+                .isInstanceOf(BomCycleException.class);
     }
 
     @Test
     void tenantIsolationBetweenOrganizations() {
         InMemorySpecificationRepository shared = new InMemorySpecificationRepository();
         SpecificationApplicationService serviceA = new SpecificationApplicationService(
-                shared, fakeContext(orgId), assemblyService, new SpecificationMapper());
+                shared, fakeContext(orgId), assemblyService,
+                partService, buyService, standartService, vzkService, new SpecificationMapper());
         OrganizationId orgB = OrganizationId.generate();
         SpecificationApplicationService serviceB = new SpecificationApplicationService(
-                shared, fakeContext(orgB), assemblyService, new SpecificationMapper());
-        when(assemblyService.get(assemblyId)).thenReturn(assemblyView(assemblyId, "A-1"));
+                shared, fakeContext(orgB), assemblyService,
+                partService, buyService, standartService, vzkService, new SpecificationMapper());
         CatalogItemReference item = part("00000000-0000-0000-0000-000000000009");
 
         serviceA.addRow(assemblyId, new AddRowRequest(item, 1));

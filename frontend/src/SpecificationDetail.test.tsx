@@ -143,4 +143,37 @@ describe("SpecificationDetail", () => {
 
     expect(onBack).toHaveBeenCalled();
   });
+
+  it("запрашивает и отображает плоскую структуру", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(200, []))
+      .mockResolvedValueOnce(
+        jsonResponse(200, [{ number: "Д-0001", name: "Втулка", quantity: 11 }]),
+      );
+
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
+    await screen.findByText("Спецификация пуста");
+
+    await userEvent.click(screen.getByRole("button", { name: "Плоская структура" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/specifications/A-1/flat");
+    });
+    expect(await screen.findByText("Д-0001")).toBeInTheDocument();
+    expect(screen.getByText("11")).toBeInTheDocument();
+  });
+
+  it("показывает ошибку цикла без частичного списка", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(200, []))
+      .mockResolvedValueOnce(jsonResponse(409, { error: "bom_cycle", message: "..." }));
+
+    render(<SpecificationDetail assemblyId="A-1" onBack={() => {}} />);
+    await screen.findByText("Спецификация пуста");
+
+    await userEvent.click(screen.getByRole("button", { name: "Плоская структура" }));
+
+    expect(await screen.findByText(/обнаружен цикл/)).toBeInTheDocument();
+  });
 });
