@@ -1,0 +1,13 @@
+package com.hydroyura.forgeflow.catalog.domain.standart;
+
+import com.hydroyura.forgeflow.catalog.api.StandartId;
+
+/**
+ * Driven port: сохранение и логическое удаление стандартных изделий.
+ */
+public interface StandartRepository {
+
+    void save(Standart standart);
+
+    void delete(StandartId id);
+}
