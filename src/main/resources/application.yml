@@ -9,3 +9,11 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+forgeflow:
+  security:
+    issuers:
+      - issuer: http://localhost:8081/realms/forgeflow-users
+        realm: forgeflow-users
+      - issuer: http://localhost:8081/realms/forgeflow-admins
+        realm: forgeflow-admins

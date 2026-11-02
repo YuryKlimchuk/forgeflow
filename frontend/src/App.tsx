@@ -12,6 +12,7 @@ import CreateCatalogEntryForm from "./CreateCatalogEntryForm";
 import SpecificationDetail from "./SpecificationDetail";
 import PlanList from "./PlanList";
 import PlanDetail from "./PlanDetail";
+import { login, logout, isAuthenticated } from "./auth";
 import "./App.css";
 
 type Status = "loading" | "ready" | "error";
@@ -26,6 +27,7 @@ export default function App() {
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [authenticated, setAuthenticated] = useState(isAuthenticated());
 
   const activeType =
     CATALOG_TYPES.find((type) => type.key === activeKey) ?? CATALOG_TYPES[0];
@@ -87,6 +89,16 @@ export default function App() {
     setView("catalog-detail");
   };
 
+  const handleLogin = async (realm: "users" | "admins") => {
+    await login(realm);
+    setAuthenticated(isAuthenticated());
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setAuthenticated(false);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -99,6 +111,16 @@ export default function App() {
             Планы
           </button>
         </nav>
+        <div className="app-auth">
+          {authenticated ? (
+            <button onClick={handleLogout}>Выйти</button>
+          ) : (
+            <>
+              <button onClick={() => handleLogin("users")}>Войти как пользователь</button>
+              <button onClick={() => handleLogin("admins")}>Войти в админку</button>
+            </>
+          )}
+        </div>
       </header>
       <main className="app-main">
         {view === "list" && (

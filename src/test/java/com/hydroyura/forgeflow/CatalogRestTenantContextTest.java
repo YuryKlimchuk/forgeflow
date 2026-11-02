@@ -1,6 +1,7 @@
 package com.hydroyura.forgeflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,13 +43,14 @@ class CatalogRestTenantContextTest extends AbstractPostgresIntegrationTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(springSecurity())
                 .addFilters(tenantContextFilter)
                 .build();
     }
 
     @Test
     void contextIsClearedAfterSuccessfulRequest() throws Exception {
-        mockMvc.perform(get("/api/v1/assemblies"))
+        mockMvc.perform(get("/api/v1/assemblies").with(demoUserJwt()))
                 .andExpect(status().isOk());
 
         assertThat(organizationContext.currentOrganizationId()).isEmpty();
@@ -56,7 +58,7 @@ class CatalogRestTenantContextTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void contextIsClearedAfterNotFoundRequest() throws Exception {
-        mockMvc.perform(get("/api/v1/assemblies/{id}", UUID.randomUUID()))
+        mockMvc.perform(get("/api/v1/assemblies/{id}", UUID.randomUUID()).with(demoUserJwt()))
                 .andExpect(status().isNotFound());
 
         assertThat(organizationContext.currentOrganizationId()).isEmpty();
@@ -70,6 +72,7 @@ class CatalogRestTenantContextTest extends AbstractPostgresIntegrationTest {
         assemblyRepository.save(assembly);
 
         mockMvc.perform(get("/api/v1/assemblies/{id}", assembly.getId().value())
+                        .with(demoUserJwt())
                         .header("X-Organization-Id", foreignOrg.toString()))
                 .andExpect(status().isNotFound());
 

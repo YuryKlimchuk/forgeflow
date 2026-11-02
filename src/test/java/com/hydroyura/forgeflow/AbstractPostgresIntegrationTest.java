@@ -12,8 +12,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
@@ -43,6 +45,12 @@ public abstract class AbstractPostgresIntegrationTest {
 
     protected static final UUID DEMO_ORGANIZATION_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     protected static final String DEMO_USER_ID = "demo-user";
+    protected static final String USERS_ISSUER = "http://localhost:8081/realms/forgeflow-users";
+
+    protected static RequestPostProcessor demoUserJwt() {
+        return SecurityMockMvcRequestPostProcessors.jwt()
+                .jwt(jwt -> jwt.issuer(USERS_ISSUER).subject(DEMO_USER_ID));
+    }
 
     @Autowired
     OrganizationRepository organizationRepository;

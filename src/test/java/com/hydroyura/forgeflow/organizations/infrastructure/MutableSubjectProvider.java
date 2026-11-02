@@ -4,8 +4,7 @@ import com.hydroyura.forgeflow.organizations.api.UserId;
 import com.hydroyura.forgeflow.organizations.application.SubjectProvider;
 
 /**
- * Простейший держатель текущего subject. На этом этапе не интегрируется с
- * внешней системой идентификации.
+ * Тестовый двойник порта {@link SubjectProvider} для unit-тестов.
  */
 public class MutableSubjectProvider implements SubjectProvider {
 

@@ -94,7 +94,7 @@ class TenantContextFilterTest {
             OrganizationService organizationService,
             ThreadLocalOrganizationContext context) {
         OrganizationContextResolver resolver = new OrganizationContextResolver(organizationService);
-        OrganizationContextLifecycle lifecycle = new OrganizationContextLifecycle(userProvider, resolver, context);
+        OrganizationContextLifecycle lifecycle = new OrganizationContextLifecycle(userProvider, resolver, context, organizationService);
         return new TenantContextFilter(lifecycle);
     }
 }

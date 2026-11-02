@@ -1,11 +1,11 @@
 package com.hydroyura.forgeflow;
 
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,32 +26,33 @@ class OrganizationSettingsRestIntegrationTest extends AbstractPostgresIntegratio
     @Autowired
     TenantContextFilter tenantContextFilter;
 
-    @Autowired
-    OrganizationId demoOrganizationId;
-
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(springSecurity())
                 .addFilters(tenantContextFilter)
                 .build();
     }
 
     @Test
     void settingsAreAppliedToCatalogCreation() throws Exception {
-        mockMvc.perform(put("/api/v1/organizations/{id}/settings", demoOrganizationId.value())
+        mockMvc.perform(put("/api/v1/organizations/{id}/settings", DEMO_ORGANIZATION_ID)
+                        .with(demoUserJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"partNumberPattern\":\"PART-[0-9]+\"}"))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(post("/api/v1/parts")
+                        .with(demoUserJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"number\":\"42\",\"name\":\"Деталь\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("bad_request"));
 
         mockMvc.perform(post("/api/v1/parts")
+                        .with(demoUserJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"number\":\"PART-42\",\"name\":\"Деталь\"}"))
                 .andExpect(status().isCreated());
@@ -59,7 +60,8 @@ class OrganizationSettingsRestIntegrationTest extends AbstractPostgresIntegratio
 
     @Test
     void invalidRegexRejectedAtSettingsUpdate() throws Exception {
-        mockMvc.perform(put("/api/v1/organizations/{id}/settings", demoOrganizationId.value())
+        mockMvc.perform(put("/api/v1/organizations/{id}/settings", DEMO_ORGANIZATION_ID)
+                        .with(demoUserJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"partNumberPattern\":\"([unclosed\"}"))
                 .andExpect(status().isBadRequest())

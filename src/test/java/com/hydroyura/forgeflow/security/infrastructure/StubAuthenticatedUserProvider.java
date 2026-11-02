@@ -5,7 +5,7 @@ import com.hydroyura.forgeflow.security.api.AuthenticatedUserProvider;
 import java.util.Optional;
 
 /**
- * Заглушка текущего аутентифицированного пользователя (без Keycloak).
+ * Тестовый двойник порта {@link AuthenticatedUserProvider} для unit-тестов.
  */
 public class StubAuthenticatedUserProvider implements AuthenticatedUserProvider {
 

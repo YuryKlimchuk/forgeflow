@@ -38,7 +38,7 @@ import com.hydroyura.forgeflow.organizations.application.OrganizationSettingsPro
 import com.hydroyura.forgeflow.organizations.application.SubjectProvider;
 import com.hydroyura.forgeflow.organizations.domain.OrganizationRepository;
 import com.hydroyura.forgeflow.organizations.domain.OwnerRepository;
-import com.hydroyura.forgeflow.organizations.infrastructure.MutableSubjectProvider;
+import com.hydroyura.forgeflow.organizations.infrastructure.SecurityContextSubjectProvider;
 import com.hydroyura.forgeflow.organizations.infrastructure.SystemClock;
 import com.hydroyura.forgeflow.organizations.infrastructure.persistence.JpaMembershipCoordinator;
 import com.hydroyura.forgeflow.organizations.infrastructure.persistence.JpaOrganizationRepository;
@@ -54,7 +54,6 @@ import com.hydroyura.forgeflow.planning.infrastructure.persistence.PlanJpaReposi
 import com.hydroyura.forgeflow.security.api.AuthenticatedUserProvider;
 import com.hydroyura.forgeflow.security.application.OrganizationContextResolver;
 import com.hydroyura.forgeflow.security.infrastructure.OrganizationContextLifecycle;
-import com.hydroyura.forgeflow.security.infrastructure.StubAuthenticatedUserProvider;
 import com.hydroyura.forgeflow.security.infrastructure.ThreadLocalOrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
 import com.hydroyura.forgeflow.specifications.application.SpecificationApplicationService;
@@ -144,16 +143,11 @@ public class WebConfig {
         return new ThreadLocalOrganizationContext();
     }
 
-    @Bean
-    public StubAuthenticatedUserProvider authenticatedUserProvider() {
-        return new StubAuthenticatedUserProvider();
-    }
-
     // --- Organizations ---
 
     @Bean
-    public MutableSubjectProvider subjectProvider() {
-        return new MutableSubjectProvider();
+    public SubjectProvider subjectProvider() {
+        return new SecurityContextSubjectProvider();
     }
 
     @Bean
@@ -204,8 +198,9 @@ public class WebConfig {
     public OrganizationContextLifecycle organizationContextLifecycle(
             AuthenticatedUserProvider userProvider,
             OrganizationContextResolver resolver,
-            ThreadLocalOrganizationContext context) {
-        return new OrganizationContextLifecycle(userProvider, resolver, context);
+            ThreadLocalOrganizationContext context,
+            OrganizationService organizationService) {
+        return new OrganizationContextLifecycle(userProvider, resolver, context, organizationService);
     }
 
     // --- Application services ---

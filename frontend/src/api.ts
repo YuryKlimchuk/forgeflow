@@ -1,3 +1,5 @@
+import { getToken } from "./auth";
+
 export interface CatalogTypeConfig {
   key: string;
   label: string;
@@ -62,6 +64,16 @@ async function toJsonOrThrow<T>(response: Response): Promise<T> {
   throw new ApiClientError(response.status, body.error, body.message);
 }
 
+async function authFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const token = await getToken();
+  if (!token) {
+    return init === undefined ? fetch(input) : fetch(input, init);
+  }
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return fetch(input, { ...init, headers });
+}
+
 export type CatalogItemType = "PART" | "ASSEMBLY" | "BUY" | "STANDART" | "VZK";
 
 export const CATALOG_ITEM_TYPES: CatalogItemType[] = [
@@ -124,7 +136,7 @@ export interface CreatePlanRequest {
 export const specificationApi = {
   async list(assemblyId: string): Promise<SpecificationRow[]> {
     return toJsonOrThrow<SpecificationRow[]>(
-      await fetch(`/api/v1/specifications/${assemblyId}/rows`),
+      await authFetch(`/api/v1/specifications/${assemblyId}/rows`),
     );
   },
 
@@ -134,7 +146,7 @@ export const specificationApi = {
     quantity: number,
   ): Promise<SpecificationRow> {
     return toJsonOrThrow<SpecificationRow>(
-      await fetch(`/api/v1/specifications/${assemblyId}/rows`, {
+      await authFetch(`/api/v1/specifications/${assemblyId}/rows`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item, quantity }),
@@ -148,7 +160,7 @@ export const specificationApi = {
     quantity: number,
   ): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`/api/v1/specifications/${assemblyId}/rows`, {
+      await authFetch(`/api/v1/specifications/${assemblyId}/rows`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item, quantity }),
@@ -158,7 +170,7 @@ export const specificationApi = {
 
   async removeRow(assemblyId: string, item: CatalogItemReference): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`/api/v1/specifications/${assemblyId}/rows`, {
+      await authFetch(`/api/v1/specifications/${assemblyId}/rows`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item }),
@@ -168,7 +180,7 @@ export const specificationApi = {
 
   async copy(sourceAssemblyId: string, number: string, name: string): Promise<CatalogEntry> {
     return toJsonOrThrow<CatalogEntry>(
-      await fetch(`/api/v1/specifications/${sourceAssemblyId}/copy`, {
+      await authFetch(`/api/v1/specifications/${sourceAssemblyId}/copy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ number, name }),
@@ -178,7 +190,7 @@ export const specificationApi = {
 
   async flat(assemblyId: string): Promise<FlatBomItem[]> {
     return toJsonOrThrow<FlatBomItem[]>(
-      await fetch(`/api/v1/specifications/${assemblyId}/flat`),
+      await authFetch(`/api/v1/specifications/${assemblyId}/flat`),
     );
   },
 
@@ -188,7 +200,7 @@ export const specificationApi = {
   ): Promise<CatalogItemReference[]> {
     const params = new URLSearchParams({ itemType: item.type, itemId: item.id });
     return toJsonOrThrow<CatalogItemReference[]>(
-      await fetch(`/api/v1/specifications/${assemblyId}/substitutes?${params}`),
+      await authFetch(`/api/v1/specifications/${assemblyId}/substitutes?${params}`),
     );
   },
 
@@ -198,7 +210,7 @@ export const specificationApi = {
     substituteRef: CatalogItemReference,
   ): Promise<CatalogItemReference> {
     return toJsonOrThrow<CatalogItemReference>(
-      await fetch(`/api/v1/specifications/${assemblyId}/substitutes`, {
+      await authFetch(`/api/v1/specifications/${assemblyId}/substitutes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item, substituteRef } satisfies SubstituteRequest),
@@ -212,7 +224,7 @@ export const specificationApi = {
     substituteRef: CatalogItemReference,
   ): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`/api/v1/specifications/${assemblyId}/substitutes`, {
+      await authFetch(`/api/v1/specifications/${assemblyId}/substitutes`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item, substituteRef } satisfies SubstituteRequest),
@@ -223,16 +235,16 @@ export const specificationApi = {
 
 export const catalogApi = {
   async get(endpoint: string, id: string): Promise<CatalogEntry> {
-    return toJsonOrThrow<CatalogEntry>(await fetch(`${endpoint}/${id}`));
+    return toJsonOrThrow<CatalogEntry>(await authFetch(`${endpoint}/${id}`));
   },
 
   async list(endpoint: string): Promise<CatalogEntry[]> {
-    return toJsonOrThrow<CatalogEntry[]>(await fetch(endpoint));
+    return toJsonOrThrow<CatalogEntry[]>(await authFetch(endpoint));
   },
 
   async create(endpoint: string, request: CreateCatalogEntryRequest): Promise<CatalogEntry> {
     return toJsonOrThrow<CatalogEntry>(
-      await fetch(endpoint, {
+      await authFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
@@ -242,7 +254,7 @@ export const catalogApi = {
 
   async rename(endpoint: string, id: string, name: string): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`${endpoint}/${id}/name`, {
+      await authFetch(`${endpoint}/${id}/name`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
@@ -251,14 +263,14 @@ export const catalogApi = {
   },
 
   async remove(endpoint: string, id: string): Promise<void> {
-    return toJsonOrThrow<void>(await fetch(`${endpoint}/${id}`, { method: "DELETE" }));
+    return toJsonOrThrow<void>(await authFetch(`${endpoint}/${id}`, { method: "DELETE" }));
   },
 };
 
 export const planningApi = {
   async create(request: CreatePlanRequest): Promise<PlanView> {
     return toJsonOrThrow<PlanView>(
-      await fetch("/api/v1/plans", {
+      await authFetch("/api/v1/plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
@@ -267,16 +279,16 @@ export const planningApi = {
   },
 
   async list(): Promise<PlanView[]> {
-    return toJsonOrThrow<PlanView[]>(await fetch("/api/v1/plans"));
+    return toJsonOrThrow<PlanView[]>(await authFetch("/api/v1/plans"));
   },
 
   async get(id: string): Promise<PlanView> {
-    return toJsonOrThrow<PlanView>(await fetch(`/api/v1/plans/${id}`));
+    return toJsonOrThrow<PlanView>(await authFetch(`/api/v1/plans/${id}`));
   },
 
   async addItem(id: string, assemblyId: string, quantity: number): Promise<PlanItemView> {
     return toJsonOrThrow<PlanItemView>(
-      await fetch(`/api/v1/plans/${id}/items`, {
+      await authFetch(`/api/v1/plans/${id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assemblyId: { value: assemblyId }, quantity }),
@@ -286,7 +298,7 @@ export const planningApi = {
 
   async changeQuantity(id: string, assemblyId: string, quantity: number): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`/api/v1/plans/${id}/items/${assemblyId}`, {
+      await authFetch(`/api/v1/plans/${id}/items/${assemblyId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity }),
@@ -296,12 +308,12 @@ export const planningApi = {
 
   async removeItem(id: string, assemblyId: string): Promise<void> {
     return toJsonOrThrow<void>(
-      await fetch(`/api/v1/plans/${id}/items/${assemblyId}`, { method: "DELETE" }),
+      await authFetch(`/api/v1/plans/${id}/items/${assemblyId}`, { method: "DELETE" }),
     );
   },
 
   async flat(id: string): Promise<FlatBomItem[]> {
-    return toJsonOrThrow<FlatBomItem[]>(await fetch(`/api/v1/plans/${id}/flat`));
+    return toJsonOrThrow<FlatBomItem[]>(await authFetch(`/api/v1/plans/${id}/flat`));
   },
 };
 

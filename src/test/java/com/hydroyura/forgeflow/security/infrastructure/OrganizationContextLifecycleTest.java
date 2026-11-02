@@ -31,7 +31,8 @@ class OrganizationContextLifecycleTest {
         lifecycle = new OrganizationContextLifecycle(
                 userProvider,
                 new OrganizationContextResolver(organizationService),
-                context);
+                context,
+                organizationService);
     }
 
     @Test
