@@ -14,10 +14,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Реализация {@link BuyService}: CRUD-срез покупных изделий каталога.
  */
+@Transactional
 public class BuyApplicationService implements BuyService {
 
     private final BuyRepository repository;

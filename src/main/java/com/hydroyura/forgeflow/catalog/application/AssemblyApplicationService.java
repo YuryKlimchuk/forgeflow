@@ -14,10 +14,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Реализация {@link AssemblyService}: CRUD-срез сборочных единиц каталога.
  */
+@Transactional
 public class AssemblyApplicationService implements AssemblyService {
 
     private final AssemblyRepository repository;

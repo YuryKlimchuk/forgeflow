@@ -14,10 +14,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Реализация {@link StandartService}: CRUD-срез стандартных изделий каталога.
  */
+@Transactional
 public class StandartApplicationService implements StandartService {
 
     private final StandartRepository repository;

@@ -9,14 +9,12 @@ import com.hydroyura.forgeflow.catalog.api.StandartService;
 import com.hydroyura.forgeflow.catalog.api.VzkService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * Проверка, что composition root собирается без циклических зависимостей и
  * все пять публичных сервисов каталога доступны в контексте.
  */
-@SpringBootTest(properties = "forgeflow.seed.enabled=false")
-class ApplicationContextTest {
+class ApplicationContextTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     PartService partService;

@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Реализация {@link PartService}: эталонный CRUD-срез деталей каталога.
@@ -21,6 +22,7 @@ import java.util.Objects;
  * <p>Текущая организация берётся из {@link OrganizationContext} и передаётся в
  * репозиторий явным аргументом; репозиторий контекст не читает.</p>
  */
+@Transactional
 public class PartApplicationService implements PartService {
 
     private final PartRepository repository;

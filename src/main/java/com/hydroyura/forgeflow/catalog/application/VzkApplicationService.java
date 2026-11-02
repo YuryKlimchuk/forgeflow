@@ -14,10 +14,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Реализация {@link VzkService}: CRUD-срез групп ВЗК каталога.
  */
+@Transactional
 public class VzkApplicationService implements VzkService {
 
     private final VzkRepository repository;

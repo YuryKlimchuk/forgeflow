@@ -43,6 +43,26 @@ public class Organization {
         return new Organization(id, name, now);
     }
 
+    /**
+     * Восстановление агрегата из хранилища без повторного применения бизнес-правил.
+     * Используется только инфраструктурой персистентности.
+     */
+    public static Organization reconstitute(
+            OrganizationId id,
+            String name,
+            Instant createdAt,
+            Instant updatedAt,
+            OrganizationSettings settings,
+            List<UserId> memberUserIds) {
+        Organization organization = new Organization(id, name, createdAt);
+        organization.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+        organization.settings = Objects.requireNonNull(settings, "settings must not be null");
+        for (UserId userId : memberUserIds) {
+            organization.members.add(new Membership(userId));
+        }
+        return organization;
+    }
+
     public void rename(String newName, Instant now) {
         this.name = requireNotBlank(newName);
         this.updatedAt = Objects.requireNonNull(now, "now must not be null");

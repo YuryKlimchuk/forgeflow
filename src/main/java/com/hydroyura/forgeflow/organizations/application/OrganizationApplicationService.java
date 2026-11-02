@@ -14,6 +14,7 @@ import com.hydroyura.forgeflow.organizations.domain.Owner;
 import com.hydroyura.forgeflow.organizations.domain.OwnerRepository;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -22,6 +23,7 @@ import java.util.regex.PatternSyntaxException;
  * определяется через {@link SubjectProvider}, а конкурентные операции
  * координируются через {@link MembershipCoordinator}.
  */
+@Transactional
 public class OrganizationApplicationService implements OrganizationService {
 
     private final SubjectProvider subjectProvider;

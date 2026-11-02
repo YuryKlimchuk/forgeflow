@@ -24,11 +24,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Реализация {@link PlanService}: управление планами и расчёт сводной
  * потребности. Текущая организация берётся из {@link OrganizationContext}.
  */
+@Transactional
 public class PlanApplicationService implements PlanService {
 
     private final PlanRepository repository;

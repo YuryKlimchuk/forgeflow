@@ -20,22 +20,16 @@ import com.hydroyura.forgeflow.catalog.domain.buy.BuyRepository;
 import com.hydroyura.forgeflow.catalog.domain.part.PartRepository;
 import com.hydroyura.forgeflow.catalog.domain.standart.StandartRepository;
 import com.hydroyura.forgeflow.catalog.domain.vzk.VzkRepository;
-import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryAssemblyRepository;
-import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryBuyRepository;
-import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryPartRepository;
-import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryStandartRepository;
-import com.hydroyura.forgeflow.catalog.infrastructure.InMemoryVzkRepository;
-import com.hydroyura.forgeflow.specifications.application.SpecificationApplicationService;
-import com.hydroyura.forgeflow.specifications.application.SpecificationMapper;
-import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
-import com.hydroyura.forgeflow.specifications.domain.SubstitutionRepository;
-import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySpecificationRepository;
-import com.hydroyura.forgeflow.specifications.infrastructure.InMemorySubstitutionRepository;
-import com.hydroyura.forgeflow.specifications.api.SpecificationService;
-import com.hydroyura.forgeflow.planning.application.PlanApplicationService;
-import com.hydroyura.forgeflow.planning.application.PlanMapper;
-import com.hydroyura.forgeflow.planning.domain.PlanRepository;
-import com.hydroyura.forgeflow.planning.infrastructure.InMemoryPlanRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.AssemblyJpaRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.BuyJpaRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.JpaAssemblyRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.JpaBuyRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.JpaPartRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.JpaStandartRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.JpaVzkRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.PartJpaRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.StandartJpaRepository;
+import com.hydroyura.forgeflow.catalog.infrastructure.persistence.VzkJpaRepository;
 import com.hydroyura.forgeflow.organizations.api.OrganizationService;
 import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
@@ -44,26 +38,40 @@ import com.hydroyura.forgeflow.organizations.application.OrganizationSettingsPro
 import com.hydroyura.forgeflow.organizations.application.SubjectProvider;
 import com.hydroyura.forgeflow.organizations.domain.OrganizationRepository;
 import com.hydroyura.forgeflow.organizations.domain.OwnerRepository;
-import com.hydroyura.forgeflow.organizations.infrastructure.InMemoryMembershipCoordinator;
-import com.hydroyura.forgeflow.organizations.infrastructure.InMemoryOrganizationRepository;
-import com.hydroyura.forgeflow.organizations.infrastructure.InMemoryOwnerRepository;
 import com.hydroyura.forgeflow.organizations.infrastructure.MutableSubjectProvider;
 import com.hydroyura.forgeflow.organizations.infrastructure.SystemClock;
+import com.hydroyura.forgeflow.organizations.infrastructure.persistence.JpaMembershipCoordinator;
+import com.hydroyura.forgeflow.organizations.infrastructure.persistence.JpaOrganizationRepository;
+import com.hydroyura.forgeflow.organizations.infrastructure.persistence.JpaOwnerRepository;
+import com.hydroyura.forgeflow.organizations.infrastructure.persistence.OrganizationJpaRepository;
+import com.hydroyura.forgeflow.organizations.infrastructure.persistence.OwnerJpaRepository;
+import com.hydroyura.forgeflow.planning.application.PlanApplicationService;
+import com.hydroyura.forgeflow.planning.application.PlanMapper;
+import com.hydroyura.forgeflow.planning.domain.PlanRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.JpaPlanRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.PlanItemJpaRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.PlanJpaRepository;
 import com.hydroyura.forgeflow.security.api.AuthenticatedUserProvider;
 import com.hydroyura.forgeflow.security.application.OrganizationContextResolver;
 import com.hydroyura.forgeflow.security.infrastructure.OrganizationContextLifecycle;
 import com.hydroyura.forgeflow.security.infrastructure.StubAuthenticatedUserProvider;
 import com.hydroyura.forgeflow.security.infrastructure.ThreadLocalOrganizationContext;
 import com.hydroyura.forgeflow.shared.api.OrganizationContext;
-import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.specifications.application.SpecificationApplicationService;
+import com.hydroyura.forgeflow.specifications.application.SpecificationMapper;
+import com.hydroyura.forgeflow.specifications.api.SpecificationService;
+import com.hydroyura.forgeflow.specifications.domain.SpecificationRepository;
+import com.hydroyura.forgeflow.specifications.domain.SubstitutionRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.persistence.JpaSpecificationRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.persistence.JpaSubstitutionRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.persistence.SpecificationRowJpaRepository;
+import com.hydroyura.forgeflow.specifications.infrastructure.persistence.SubstitutionJpaRepository;
 import com.hydroyura.forgeflow.web.AssemblyController;
 import com.hydroyura.forgeflow.web.BuyController;
 import com.hydroyura.forgeflow.web.StandartController;
 import com.hydroyura.forgeflow.web.VzkController;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import tools.jackson.databind.ObjectMapper;
 
 /**
  * Composition root: собирает бины из портов и адаптеров доменных модулей,
@@ -75,28 +83,28 @@ public class WebConfig {
     // --- Catalog ---
 
     @Bean
-    public PartRepository partRepository() {
-        return new InMemoryPartRepository();
+    public PartRepository partRepository(PartJpaRepository repository) {
+        return new JpaPartRepository(repository);
     }
 
     @Bean
-    public AssemblyRepository assemblyRepository() {
-        return new InMemoryAssemblyRepository();
+    public AssemblyRepository assemblyRepository(AssemblyJpaRepository repository) {
+        return new JpaAssemblyRepository(repository);
     }
 
     @Bean
-    public BuyRepository buyRepository() {
-        return new InMemoryBuyRepository();
+    public BuyRepository buyRepository(BuyJpaRepository repository) {
+        return new JpaBuyRepository(repository);
     }
 
     @Bean
-    public StandartRepository standartRepository() {
-        return new InMemoryStandartRepository();
+    public StandartRepository standartRepository(StandartJpaRepository repository) {
+        return new JpaStandartRepository(repository);
     }
 
     @Bean
-    public VzkRepository vzkRepository() {
-        return new InMemoryVzkRepository();
+    public VzkRepository vzkRepository(VzkJpaRepository repository) {
+        return new JpaVzkRepository(repository);
     }
 
     @Bean
@@ -149,13 +157,13 @@ public class WebConfig {
     }
 
     @Bean
-    public InMemoryOwnerRepository ownerRepository() {
-        return new InMemoryOwnerRepository();
+    public OwnerRepository ownerRepository(OwnerJpaRepository repository) {
+        return new JpaOwnerRepository(repository);
     }
 
     @Bean
-    public InMemoryOrganizationRepository organizationRepository() {
-        return new InMemoryOrganizationRepository();
+    public OrganizationRepository organizationRepository(OrganizationJpaRepository repository) {
+        return new JpaOrganizationRepository(repository);
     }
 
     @Bean
@@ -168,7 +176,7 @@ public class WebConfig {
     public MembershipCoordinator membershipCoordinator(
             OwnerRepository owners,
             OrganizationRepository organizations) {
-        return new InMemoryMembershipCoordinator(owners, organizations);
+        return new JpaMembershipCoordinator(owners, organizations);
     }
 
     @Bean
@@ -255,13 +263,13 @@ public class WebConfig {
     // --- Specifications ---
 
     @Bean
-    public SpecificationRepository specificationRepository() {
-        return new InMemorySpecificationRepository();
+    public SpecificationRepository specificationRepository(SpecificationRowJpaRepository repository) {
+        return new JpaSpecificationRepository(repository);
     }
 
     @Bean
-    public SubstitutionRepository substitutionRepository() {
-        return new InMemorySubstitutionRepository();
+    public SubstitutionRepository substitutionRepository(SubstitutionJpaRepository repository) {
+        return new JpaSubstitutionRepository(repository);
     }
 
     @Bean
@@ -288,8 +296,8 @@ public class WebConfig {
     // --- Planning ---
 
     @Bean
-    public PlanRepository planRepository() {
-        return new InMemoryPlanRepository();
+    public PlanRepository planRepository(PlanJpaRepository repository, PlanItemJpaRepository itemRepository) {
+        return new JpaPlanRepository(repository, itemRepository);
     }
 
     @Bean
@@ -333,42 +341,5 @@ public class WebConfig {
     @Bean
     public TenantContextFilter tenantContextFilter(OrganizationContextLifecycle lifecycle) {
         return new TenantContextFilter(lifecycle);
-    }
-
-    // --- Seed ---
-
-    @Bean
-    public SeedProperties seedProperties(
-            @Value("${forgeflow.seed.enabled:true}") boolean enabled,
-            @Value("${forgeflow.seed.data-file:seed-data/catalog.json}") String dataFile,
-            @Value("${forgeflow.seed.specifications-file:seed-data/specifications.json}") String specificationsFile) {
-        return new SeedProperties(enabled, dataFile, specificationsFile);
-    }
-
-    @Bean
-    public DataSeeder dataSeeder(
-            PartRepository partRepository,
-            AssemblyRepository assemblyRepository,
-            BuyRepository buyRepository,
-            StandartRepository standartRepository,
-            VzkRepository vzkRepository,
-            SpecificationRepository specificationRepository,
-            SubstitutionRepository substitutionRepository,
-            OrganizationService organizationService,
-            OrganizationId demoOrganizationId,
-            SeedProperties seedProperties,
-            ObjectMapper objectMapper) {
-        return new DataSeeder(
-                partRepository,
-                assemblyRepository,
-                buyRepository,
-                standartRepository,
-                vzkRepository,
-                specificationRepository,
-                substitutionRepository,
-                organizationService,
-                demoOrganizationId,
-                seedProperties,
-                objectMapper);
     }
 }
