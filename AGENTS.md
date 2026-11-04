@@ -73,3 +73,7 @@ ForgeFlow — SaaS-платформа для управления электро
 - OpenSpec: `/opsx-new`, `/opsx-explore`, `/opsx-propose`, `/opsx-apply`, `/opsx-verify`,
   `/opsx-archive`, `/opsx-sync`, `/opsx-update`, `/opsx-continue`, `/opsx-ff`,
   `/opsx-bulk-archive`, `/opsx-onboard`
+
+<!-- AgentCraft workflow (installed by setup.sh) -->
+This repository follows the **AgentCraft** development workflow (8 stages, quality gates).
+See `docs/workflow.md`, `docs/orchestrator.md`, and `docs/quality-gates.md`.
