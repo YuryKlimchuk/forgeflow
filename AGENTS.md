@@ -24,7 +24,7 @@ ForgeFlow — SaaS-платформа для управления электро
 
 ## Правила разработки
 
-- Новые функциональные изменения анализируются и описываются через **OpenSpec** (см. Workflow).
+- Новые функциональные изменения проходят по AgentCraft workflow и описываются через OpenSpec на этапе Architect.
 - Новая функциональность сопровождается автоматизированными тестами.
 - **Не придумывать бизнес-правила**: неопределённости фиксировать и согласовывать до реализации.
 - Сохранять совместимость существующих контрактов, если их изменение не входит в задачу.
@@ -43,23 +43,25 @@ ForgeFlow — SaaS-платформа для управления электро
 - `spring-modulith-module` — структура пакетов `api/application/domain/infrastructure`,
   `@ApplicationModule`, `@NamedInterface`
 
-## Workflow (порядок работы над изменениями)
+## Workflow (AgentCraft)
 
-```
-1. /grill-me       → pre-spec: допрос плана, вскрытие допущений (для неоднозначных задач)
-2. /plan           → read-only исследование кода; агент выдаёт "Plan:" с шагами
-3. /opsx-propose   → фиксация решений в proposal / specs / design / tasks.md
-4. /opsx-apply     → реализация по tasks.md (чекбоксы - [ ] → - [x])
-5. /opsx-verify    → проверка соответствия реализации артефактам
-6. /opsx-archive   → архивация завершённого change
-```
+Работа над изменениями идёт по 8 этапам. Координирует процесс Orchestrator (ведущий агент);
+этапы делегируются сабагентам через `pi-subagents`. Переходы контролируются Quality Gates.
 
-Грилинг и plan mode — read-only фазы: они ничего не пишут. Запись артефактов и кода начинается
-только с `/opsx-propose` (и только после явного подтверждения пользователя).
+1. **Preparation** — задача и окружение готовы, рабочая ветка создана (G1).
+2. **Analyst** (`analyst`) — требования и Acceptance Criteria; **утверждает пользователь** (G2).
+3. **Architect** (`architect`) — OpenSpec-артефакты: proposal, specs, design, tasks (G3).
+4. **QA Planning** (`qa-planner`) — Test plan и оценка рисков; **пакет утверждает пользователь** (G4).
+5. **Developer** (`dev-implementer`) — реализация, тесты, первичные проверки (G5).
+6. **Reviewer** (`dev-reviewer`) — независимое код-ревью (G6).
+7. **QA Testing** (`qa-tester`) — фактическая проверка по Test plan (G7).
+8. **Finalization and Pull Request** — финальный отчёт и PR (G8).
 
-Архивация change (`/opsx-archive`) выполняется **только после явного подтверждения пользователя**.
-Все шаги до неё (propose → apply → verify → sync) можно делать автономно, но перед архивацией
-агент обязан остановиться и спросить разрешение.
+Детали этапов и переходов: `docs/agentcraft/workflow.md`.
+Роль Orchestrator и правила делегирования: `docs/agentcraft/orchestrator.md`.
+Условия Quality Gates: `docs/agentcraft/quality-gates.md`.
+
+Реализация не начинается, пока не утверждены требования (G2) и пакет «дизайн + Test plan» (G4).
 
 ## Язык и нумерация
 
@@ -67,13 +69,7 @@ ForgeFlow — SaaS-платформа для управления электро
 - Имена change — kebab-case; каждый proposal нумеруется по порядку (0, 1, 2, …).
 - Общение с пользователем — на русском.
 
-## Полезные команды
+## OpenSpec
 
-- Планирование: `/grill-me`, `/plan`, `/todos`
-- OpenSpec: `/opsx-new`, `/opsx-explore`, `/opsx-propose`, `/opsx-apply`, `/opsx-verify`,
-  `/opsx-archive`, `/opsx-sync`, `/opsx-update`, `/opsx-continue`, `/opsx-ff`,
-  `/opsx-bulk-archive`, `/opsx-onboard`
-
-<!-- AgentCraft workflow (installed by setup.sh) -->
-This repository follows the **AgentCraft** development workflow (8 stages, quality gates).
-See `docs/workflow.md`, `docs/orchestrator.md`, and `docs/quality-gates.md`.
+OpenSpec используется на этапах **Architect** (proposal/specs/design/tasks) и **QA Planning**
+(test-plan.md). Конвенции и CLI: `docs/agentcraft/openspec.md`, скилл `openspec`.
