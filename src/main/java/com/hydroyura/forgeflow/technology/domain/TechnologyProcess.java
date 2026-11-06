@@ -6,6 +6,7 @@ import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
@@ -49,6 +50,28 @@ public class TechnologyProcess {
     public static TechnologyProcess create(TechnologyProcessId id, String number, String name, PartId partId,
             OrganizationId organizationId, Instant createdAt, Instant updatedAt) {
         return new TechnologyProcess(id, number, name, partId, organizationId, createdAt, updatedAt);
+    }
+
+    /**
+     * Восстанавливает агрегат из персистентного представления без потерь.
+     *
+     * <p>Единственный способ построить процесс с {@code defaultProcess = true},
+     * непустым {@code deletedAt} и набором операций. Операции копируются во
+     * внутренний список в порядке возрастания номера без вызова {@link #addOperation},
+     * чтобы не перезаписывать {@code updatedAt}.</p>
+     */
+    public static TechnologyProcess restore(
+            TechnologyProcessId id, String number, String name, PartId partId,
+            OrganizationId organizationId, boolean defaultProcess,
+            Instant createdAt, Instant updatedAt, Instant deletedAt,
+            List<Operation> operations) {
+        TechnologyProcess process = new TechnologyProcess(id, number, name, partId, organizationId, createdAt, updatedAt);
+        process.defaultProcess = defaultProcess;
+        process.deletedAt = deletedAt;
+        Objects.requireNonNull(operations, "operations must not be null").stream()
+                .sorted(Comparator.comparingInt(Operation::number))
+                .forEach(process.operations::add);
+        return process;
     }
 
     public void rename(String newName) {

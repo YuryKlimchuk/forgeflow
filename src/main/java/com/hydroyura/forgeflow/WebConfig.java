@@ -65,6 +65,14 @@ import com.hydroyura.forgeflow.specifications.infrastructure.persistence.JpaSpec
 import com.hydroyura.forgeflow.specifications.infrastructure.persistence.JpaSubstitutionRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.persistence.SpecificationRowJpaRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.persistence.SubstitutionJpaRepository;
+import com.hydroyura.forgeflow.technology.api.TechnologyService;
+import com.hydroyura.forgeflow.technology.application.TechnologyApplicationService;
+import com.hydroyura.forgeflow.technology.application.TechnologyMapper;
+import com.hydroyura.forgeflow.technology.domain.TechnologyProcessRepository;
+import com.hydroyura.forgeflow.technology.domain.TechnologyProcessService;
+import com.hydroyura.forgeflow.technology.infrastructure.persistence.JpaTechnologyProcessRepository;
+import com.hydroyura.forgeflow.technology.infrastructure.persistence.TechnologyProcessJpaRepository;
+import com.hydroyura.forgeflow.technology.infrastructure.persistence.TechnologyProcessOperationJpaRepository;
 import com.hydroyura.forgeflow.web.AssemblyController;
 import com.hydroyura.forgeflow.web.BuyController;
 import com.hydroyura.forgeflow.web.StandartController;
@@ -309,6 +317,39 @@ public class WebConfig {
             PlanMapper planMapper) {
         return new PlanApplicationService(
                 planRepository, organizationContext, assemblyService, specificationService, planMapper);
+    }
+
+    // --- Technology ---
+
+    @Bean
+    public TechnologyProcessRepository technologyProcessRepository(
+            TechnologyProcessJpaRepository repository,
+            TechnologyProcessOperationJpaRepository operationRepository) {
+        return new JpaTechnologyProcessRepository(repository, operationRepository);
+    }
+
+    @Bean
+    public TechnologyMapper technologyMapper() {
+        return new TechnologyMapper();
+    }
+
+    @Bean
+    public TechnologyProcessService technologyProcessService(
+            TechnologyProcessRepository technologyProcessRepository) {
+        return new TechnologyProcessService(technologyProcessRepository);
+    }
+
+    @Bean
+    public TechnologyApplicationService technologyService(
+            TechnologyProcessRepository technologyProcessRepository,
+            TechnologyProcessService technologyProcessService,
+            OrganizationContext organizationContext,
+            PartService partService,
+            TechnologyMapper technologyMapper,
+            java.time.Clock systemClock) {
+        return new TechnologyApplicationService(
+                technologyProcessRepository, technologyProcessService, organizationContext,
+                partService, technologyMapper, systemClock);
     }
 
     // --- Web ---

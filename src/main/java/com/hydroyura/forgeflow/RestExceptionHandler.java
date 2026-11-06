@@ -27,6 +27,11 @@ import com.hydroyura.forgeflow.specifications.domain.InvalidSubstituteException;
 import com.hydroyura.forgeflow.specifications.domain.RowNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.SelfReferenceException;
 import com.hydroyura.forgeflow.specifications.domain.SubstituteNotFoundException;
+import com.hydroyura.forgeflow.technology.domain.DuplicateOperationException;
+import com.hydroyura.forgeflow.technology.domain.DuplicateTechnologyProcessNumberException;
+import com.hydroyura.forgeflow.technology.domain.InvalidDefaultProcessStateException;
+import com.hydroyura.forgeflow.technology.domain.OperationNotFoundException;
+import com.hydroyura.forgeflow.technology.domain.TechnologyProcessNotFoundException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -143,5 +148,23 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handlePlanDuplicate(PlansException e) {
         return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({TechnologyProcessNotFoundException.class, OperationNotFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleTechnologyNotFound(RuntimeException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({DuplicateTechnologyProcessNumberException.class, DuplicateOperationException.class})
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleTechnologyDuplicate(RuntimeException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidDefaultProcessStateException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleInvalidDefaultProcessState(InvalidDefaultProcessStateException e) {
+        return Map.of("error", "invalid_state", "message", String.valueOf(e.getMessage()));
     }
 }
