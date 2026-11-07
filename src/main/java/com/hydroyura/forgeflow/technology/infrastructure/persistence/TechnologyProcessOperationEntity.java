@@ -22,4 +22,7 @@ public class TechnologyProcessOperationEntity {
 
     @Column(name = "operation_name")
     public String operationName;
+
+    @Column(name = "equipment_id")
+    public UUID equipmentId;
 }

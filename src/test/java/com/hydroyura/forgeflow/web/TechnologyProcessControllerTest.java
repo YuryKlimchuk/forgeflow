@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +22,7 @@ import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.catalog.application.PartNotFoundException;
 import com.hydroyura.forgeflow.technology.api.AddOperationRequest;
 import com.hydroyura.forgeflow.technology.api.CreateTechnologyProcessRequest;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.OperationView;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessView;
@@ -30,6 +32,7 @@ import com.hydroyura.forgeflow.technology.domain.DuplicateTechnologyProcessNumbe
 import com.hydroyura.forgeflow.technology.domain.InvalidDefaultProcessStateException;
 import com.hydroyura.forgeflow.technology.domain.OperationNotFoundException;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessNotFoundException;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -132,6 +135,43 @@ class TechnologyProcessControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.number").value(10))
                 .andExpect(jsonPath("$.name").value("Сверление"));
+    }
+
+    @Test
+    void addOperation_withEquipmentId_returnsEquipmentId() throws Exception {
+        EquipmentId equipmentId = EquipmentId.generate();
+        when(technologyService.addOperation(any(TechnologyProcessId.class), any(AddOperationRequest.class)))
+                .thenReturn(new OperationView(10, "Сверление", equipmentId));
+
+        mockMvc.perform(post("/api/v1/technology-processes/{id}/operations", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"number\":10,\"name\":\"Сверление\",\"equipmentId\":{\"value\":\"" + equipmentId.value() + "\"}}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.equipmentId.value").value(equipmentId.value().toString()));
+    }
+
+    @Test
+    void addOperation_withoutEquipmentId_returnsNullEquipmentId() throws Exception {
+        when(technologyService.addOperation(any(TechnologyProcessId.class), any(AddOperationRequest.class)))
+                .thenReturn(new OperationView(10, "Сверление"));
+
+        mockMvc.perform(post("/api/v1/technology-processes/{id}/operations", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"number\":10,\"name\":\"Сверление\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.equipmentId").value(nullValue()));
+    }
+
+    @Test
+    void addOperation_missingEquipment_returns404() throws Exception {
+        when(technologyService.addOperation(any(TechnologyProcessId.class), any(AddOperationRequest.class)))
+                .thenThrow(new EquipmentNotFoundException(EquipmentId.generate()));
+
+        mockMvc.perform(post("/api/v1/technology-processes/{id}/operations", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"number\":10,\"name\":\"Сверление\",\"equipmentId\":{\"value\":\"" + UUID.randomUUID() + "\"}}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("not_found"));
     }
 
     @Test

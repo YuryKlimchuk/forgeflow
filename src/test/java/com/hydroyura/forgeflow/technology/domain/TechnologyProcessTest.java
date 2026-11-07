@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -207,6 +208,29 @@ class TechnologyProcessTest {
         assertThat(process.operations())
                 .extracting(Operation::number)
                 .containsExactly(10, 20);
+    }
+
+    @Test
+    void addOperation_withEquipmentId_preservesReference() {
+        TechnologyProcess process = process();
+        EquipmentId equipmentId = EquipmentId.generate();
+
+        process.addOperation(10, "А", equipmentId);
+
+        assertThat(process.operations())
+                .extracting(Operation::equipmentId)
+                .containsExactly(equipmentId);
+    }
+
+    @Test
+    void addOperation_twoArgConstructor_delegatesWithNullEquipmentId() {
+        TechnologyProcess process = process();
+
+        process.addOperation(10, "А");
+
+        assertThat(process.operations())
+                .extracting(Operation::equipmentId)
+                .containsExactly((EquipmentId) null);
     }
 
     @Test

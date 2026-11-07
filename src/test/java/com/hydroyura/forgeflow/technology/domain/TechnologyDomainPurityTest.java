@@ -2,6 +2,10 @@ package com.hydroyura.forgeflow.technology.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hydroyura.forgeflow.technology.domain.equipment.DuplicateEquipmentNumberException;
+import com.hydroyura.forgeflow.technology.domain.equipment.Equipment;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentNotFoundException;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentRepository;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -13,7 +17,7 @@ class TechnologyDomainPurityTest {
 
     @Test
     void aggregateUsesOnlyJmoleculesDddAnnotations() {
-        for (Class<?> type : List.of(TechnologyProcess.class)) {
+        for (Class<?> type : List.of(TechnologyProcess.class, Equipment.class)) {
             for (Annotation annotation : type.getAnnotations()) {
                 assertThat(annotation.annotationType().getPackageName())
                         .as("%s annotation %s", type.getSimpleName(), annotation.annotationType().getSimpleName())
@@ -26,6 +30,8 @@ class TechnologyDomainPurityTest {
     void repositoryPortIsAnnotationFreeInterface() {
         assertThat(TechnologyProcessRepository.class.isInterface()).isTrue();
         assertThat(TechnologyProcessRepository.class.getAnnotations()).isEmpty();
+        assertThat(EquipmentRepository.class.isInterface()).isTrue();
+        assertThat(EquipmentRepository.class.getAnnotations()).isEmpty();
     }
 
     @Test
@@ -50,6 +56,10 @@ class TechnologyDomainPurityTest {
                 DuplicateOperationException.class,
                 OperationNotFoundException.class,
                 TechnologyProcessNotFoundException.class,
-                InvalidDefaultProcessStateException.class);
+                InvalidDefaultProcessStateException.class,
+                Equipment.class,
+                EquipmentRepository.class,
+                EquipmentNotFoundException.class,
+                DuplicateEquipmentNumberException.class);
     }
 }

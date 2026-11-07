@@ -14,6 +14,8 @@ import com.hydroyura.forgeflow.technology.domain.TechnologyProcess;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessNotFoundException;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessRepository;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessService;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentNotFoundException;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +34,7 @@ public class TechnologyApplicationService implements TechnologyService {
     private final TechnologyProcessService domainService;
     private final OrganizationContext organizationContext;
     private final PartService partService;
+    private final EquipmentRepository equipmentRepository;
     private final TechnologyMapper mapper;
     private final Clock clock;
 
@@ -40,12 +43,14 @@ public class TechnologyApplicationService implements TechnologyService {
             TechnologyProcessService domainService,
             OrganizationContext organizationContext,
             PartService partService,
+            EquipmentRepository equipmentRepository,
             TechnologyMapper mapper,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository must not be null");
         this.domainService = Objects.requireNonNull(domainService, "domainService must not be null");
         this.organizationContext = Objects.requireNonNull(organizationContext, "organizationContext must not be null");
         this.partService = Objects.requireNonNull(partService, "partService must not be null");
+        this.equipmentRepository = Objects.requireNonNull(equipmentRepository, "equipmentRepository must not be null");
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
@@ -118,9 +123,13 @@ public class TechnologyApplicationService implements TechnologyService {
         OrganizationId organizationId = organizationContext.requiredOrganizationId();
         TechnologyProcess process = repository.findById(id, organizationId)
                 .orElseThrow(() -> new TechnologyProcessNotFoundException(id));
-        process.addOperation(request.number(), request.name());
+        if (Objects.nonNull(request.equipmentId())) {
+            equipmentRepository.findById(request.equipmentId(), organizationId)
+                    .orElseThrow(() -> new EquipmentNotFoundException(request.equipmentId()));
+        }
+        process.addOperation(request.number(), request.name(), request.equipmentId());
         repository.save(process);
-        return new OperationView(request.number(), request.name());
+        return new OperationView(request.number(), request.name(), request.equipmentId());
     }
 
     @Override

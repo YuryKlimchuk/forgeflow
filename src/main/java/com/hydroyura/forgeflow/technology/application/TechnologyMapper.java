@@ -12,7 +12,7 @@ public class TechnologyMapper {
 
     public TechnologyProcessView toView(TechnologyProcess process) {
         List<OperationView> operations = process.operations().stream()
-                .map(operation -> new OperationView(operation.number(), operation.name()))
+                .map(operation -> new OperationView(operation.number(), operation.name(), operation.equipmentId()))
                 .toList();
         return new TechnologyProcessView(
                 process.getId(),

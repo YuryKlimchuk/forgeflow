@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.hydroyura.forgeflow.AbstractPostgresIntegrationTest;
 import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import com.hydroyura.forgeflow.technology.domain.DuplicateTechnologyProcessNumberException;
 import com.hydroyura.forgeflow.technology.domain.Operation;
@@ -55,6 +56,26 @@ class JpaTechnologyProcessRepositoryTest extends AbstractPostgresIntegrationTest
         assertThat(loaded.getUpdatedAt()).isEqualTo(UPDATED);
         assertThat(loaded.getDeletedAt()).isNull();
         assertThat(loaded.operations()).extracting(Operation::number).containsExactly(10, 20);
+    }
+
+    @Test
+    void roundTrip_preservesNullableOperationEquipmentId() {
+        OrganizationId org = OrganizationId.generate();
+        PartId part = PartId.generate();
+        EquipmentId equipmentId = EquipmentId.generate();
+        TechnologyProcess process = TechnologyProcess.restore(
+                TechnologyProcessId.generate(), "TP-1", "Фрезеровка", part, org, false,
+                CREATED, UPDATED, null,
+                List.of(
+                        new Operation(20, "Б"),
+                        new Operation(10, "А", equipmentId)));
+        technologyProcessRepository.save(process);
+
+        TechnologyProcess loaded = technologyProcessRepository.findById(process.getId(), org).orElseThrow();
+
+        assertThat(loaded.operations())
+                .extracting(Operation::equipmentId)
+                .containsExactly(equipmentId, null);
     }
 
     @Test

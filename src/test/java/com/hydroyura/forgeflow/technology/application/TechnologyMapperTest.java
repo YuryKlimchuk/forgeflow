@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.OperationView;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessView;
@@ -41,5 +42,22 @@ class TechnologyMapperTest {
         assertThat(view.operations())
                 .extracting(OperationView::number)
                 .containsExactly(10, 20);
+    }
+
+    @Test
+    void toView_mapsOperationEquipmentId() {
+        EquipmentId equipmentId = EquipmentId.generate();
+        TechnologyProcess process = TechnologyProcess.restore(
+                TechnologyProcessId.generate(), "TP-1", "Фрезеровка", PartId.generate(),
+                OrganizationId.generate(), false, CREATED, UPDATED, null,
+                List.of(
+                        new Operation(20, "Б"),
+                        new Operation(10, "А", equipmentId)));
+
+        TechnologyProcessView view = new TechnologyMapper().toView(process);
+
+        assertThat(view.operations())
+                .extracting(OperationView::equipmentId)
+                .containsExactly(equipmentId, null);
     }
 }

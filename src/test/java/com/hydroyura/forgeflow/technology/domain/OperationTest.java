@@ -3,6 +3,7 @@ package com.hydroyura.forgeflow.technology.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import org.junit.jupiter.api.Test;
 
 class OperationTest {
@@ -13,6 +14,16 @@ class OperationTest {
 
         assertThat(operation.number()).isEqualTo(5);
         assertThat(operation.name()).isEqualTo("Сверление");
+        assertThat(operation.equipmentId()).isNull();
+    }
+
+    @Test
+    void constructor_withEquipmentId_preservesReference() {
+        EquipmentId equipmentId = EquipmentId.generate();
+
+        Operation operation = new Operation(5, "Сверление", equipmentId);
+
+        assertThat(operation.equipmentId()).isEqualTo(equipmentId);
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.hydroyura.forgeflow.technology.domain;
 
 import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -89,7 +90,11 @@ public class TechnologyProcess {
     }
 
     public void addOperation(int number, String name) {
-        Operation operation = new Operation(number, name);
+        addOperation(number, name, null);
+    }
+
+    public void addOperation(int number, String name, EquipmentId equipmentId) {
+        Operation operation = new Operation(number, name, equipmentId);
         if (operations.stream().anyMatch(existing -> existing.number() == operation.number())) {
             throw new DuplicateOperationException(number);
         }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import com.hydroyura.forgeflow.technology.domain.Operation;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcess;
@@ -58,5 +59,25 @@ class TechnologyMapperTest {
 
         assertThat(entities).extracting(e -> e.operationNumber).containsExactly(10, 20);
         assertThat(entities).allSatisfy(e -> assertThat(e.processId).isEqualTo(process.getId().value()));
+    }
+
+    @Test
+    void operationEquipmentIdRoundTrip_preservesNullAndNonNull() {
+        EquipmentId equipmentId = EquipmentId.generate();
+        TechnologyProcess process = TechnologyProcess.restore(
+                TechnologyProcessId.generate(), "TP-1", "Имя", PartId.generate(),
+                OrganizationId.generate(), false, CREATED, UPDATED, null,
+                List.of(
+                        new Operation(20, "Б"),
+                        new Operation(10, "А", equipmentId)));
+
+        List<TechnologyProcessOperationEntity> entities = mapper.toOperationEntities(process);
+        TechnologyProcess restored = mapper.toDomain(mapper.toEntity(process), entities);
+
+        assertThat(entities).extracting(e -> e.equipmentId)
+                .containsExactly(equipmentId.value(), null);
+        assertThat(restored.operations())
+                .extracting(Operation::equipmentId)
+                .containsExactly(equipmentId, null);
     }
 }

@@ -2,6 +2,7 @@ package com.hydroyura.forgeflow.technology.infrastructure.persistence;
 
 import com.hydroyura.forgeflow.catalog.api.PartId;
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import com.hydroyura.forgeflow.technology.domain.Operation;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcess;
@@ -34,6 +35,7 @@ public final class TechnologyMapper {
                     entity.processId = process.getId().value();
                     entity.operationNumber = operation.number();
                     entity.operationName = operation.name();
+                    entity.equipmentId = operation.equipmentId() == null ? null : operation.equipmentId().value();
                     return entity;
                 })
                 .toList();
@@ -41,7 +43,10 @@ public final class TechnologyMapper {
 
     public TechnologyProcess toDomain(TechnologyProcessEntity entity, List<TechnologyProcessOperationEntity> operations) {
         List<Operation> domainOperations = operations.stream()
-                .map(operation -> new Operation(operation.operationNumber, operation.operationName))
+                .map(operation -> new Operation(
+                        operation.operationNumber,
+                        operation.operationName,
+                        operation.equipmentId == null ? null : EquipmentId.of(operation.equipmentId)))
                 .toList();
         return TechnologyProcess.restore(
                 TechnologyProcessId.of(entity.id),

@@ -17,6 +17,7 @@ import com.hydroyura.forgeflow.shared.api.OrganizationContextNotAvailableExcepti
 import com.hydroyura.forgeflow.shared.api.OrganizationId;
 import com.hydroyura.forgeflow.technology.api.AddOperationRequest;
 import com.hydroyura.forgeflow.technology.api.CreateTechnologyProcessRequest;
+import com.hydroyura.forgeflow.technology.api.EquipmentId;
 import com.hydroyura.forgeflow.technology.api.OperationView;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessId;
 import com.hydroyura.forgeflow.technology.api.TechnologyProcessView;
@@ -26,6 +27,9 @@ import com.hydroyura.forgeflow.technology.domain.InvalidDefaultProcessStateExcep
 import com.hydroyura.forgeflow.technology.domain.OperationNotFoundException;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessNotFoundException;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessService;
+import com.hydroyura.forgeflow.technology.domain.equipment.Equipment;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentNotFoundException;
+import com.hydroyura.forgeflow.technology.infrastructure.InMemoryEquipmentRepository;
 import com.hydroyura.forgeflow.technology.infrastructure.InMemoryTechnologyProcessRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -43,6 +47,7 @@ class TechnologyApplicationServiceTest {
     private final PartId partA = PartId.generate();
     private final PartId partB = PartId.generate();
     private final InMemoryTechnologyProcessRepository repository = new InMemoryTechnologyProcessRepository();
+    private final InMemoryEquipmentRepository equipmentRepository = new InMemoryEquipmentRepository();
     private final TechnologyProcessService domainService = new TechnologyProcessService(repository);
     private final PartService partService = mock(PartService.class);
     private final TechnologyApplicationService service = serviceFor(orgA);
@@ -273,6 +278,74 @@ class TechnologyApplicationServiceTest {
     }
 
     @Test
+    void addOperation_withEquipmentId_addsOperationAndReturnsReference() {
+        TechnologyProcessView created = service.create(new CreateTechnologyProcessRequest("TP-1", "Фрезеровка", partA));
+        EquipmentId equipmentId = EquipmentId.generate();
+        equipmentRepository.save(Equipment.create(
+                equipmentId, "С-001", "Станок", "Токарный", orgA, NOW, NOW));
+
+        OperationView added = service.addOperation(created.id(), new AddOperationRequest(10, "А", equipmentId));
+
+        assertThat(added.equipmentId()).isEqualTo(equipmentId);
+        assertThat(service.get(created.id()).operations())
+                .extracting(OperationView::equipmentId)
+                .containsExactly(equipmentId);
+    }
+
+    @Test
+    void addOperation_withoutEquipmentId_addsOperationWithoutReference() {
+        TechnologyProcessView created = service.create(new CreateTechnologyProcessRequest("TP-1", "Фрезеровка", partA));
+
+        OperationView added = service.addOperation(created.id(), new AddOperationRequest(10, "А"));
+
+        assertThat(added.equipmentId()).isNull();
+        assertThat(service.get(created.id()).operations())
+                .extracting(OperationView::equipmentId)
+                .containsExactly((EquipmentId) null);
+    }
+
+    @Test
+    void addOperation_foreignEquipment_rejectsAndKeepsProcessUnchanged() {
+        TechnologyProcessView created = service.create(new CreateTechnologyProcessRequest("TP-1", "Фрезеровка", partA));
+        EquipmentId foreignEquipmentId = EquipmentId.generate();
+        equipmentRepository.save(Equipment.create(
+                foreignEquipmentId, "С-001", "Чужой станок", "Токарный", orgB, NOW, NOW));
+        TechnologyProcessView before = service.get(created.id());
+
+        assertThatThrownBy(() -> service.addOperation(
+                created.id(), new AddOperationRequest(10, "А", foreignEquipmentId)))
+                .isInstanceOf(EquipmentNotFoundException.class);
+        assertThat(service.get(created.id())).isEqualTo(before);
+    }
+
+    @Test
+    void addOperation_missingEquipment_rejectsAndKeepsProcessUnchanged() {
+        TechnologyProcessView created = service.create(new CreateTechnologyProcessRequest("TP-1", "Фрезеровка", partA));
+        TechnologyProcessView before = service.get(created.id());
+
+        assertThatThrownBy(() -> service.addOperation(
+                created.id(), new AddOperationRequest(10, "А", EquipmentId.generate())))
+                .isInstanceOf(EquipmentNotFoundException.class);
+        assertThat(service.get(created.id())).isEqualTo(before);
+    }
+
+    @Test
+    void addOperation_processMissing_rejectsBeforeEquipmentCheck() {
+        assertThatThrownBy(() -> service.addOperation(
+                TechnologyProcessId.generate(), new AddOperationRequest(10, "А", EquipmentId.generate())))
+                .isInstanceOf(TechnologyProcessNotFoundException.class);
+    }
+
+    @Test
+    void addOperation_equipmentCheckRunsBeforeOperationValidation() {
+        TechnologyProcessView created = service.create(new CreateTechnologyProcessRequest("TP-1", "Фрезеровка", partA));
+
+        assertThatThrownBy(() -> service.addOperation(
+                created.id(), new AddOperationRequest(0, "А", EquipmentId.generate())))
+                .isInstanceOf(EquipmentNotFoundException.class);
+    }
+
+    @Test
     void removeOperation_removesByNumber() {
         TechnologyProcessView created = service.create(new CreateTechnologyProcessRequest("TP-1", "Фрезеровка", partA));
         service.addOperation(created.id(), new AddOperationRequest(10, "А"));
@@ -356,6 +429,7 @@ class TechnologyApplicationServiceTest {
                 domainService,
                 fakeContext(organizationId),
                 partService,
+                equipmentRepository,
                 new TechnologyMapper(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
