@@ -3,6 +3,6 @@
  * доменных модулей.
  */
 @org.springframework.modulith.ApplicationModule(
-        allowedDependencies = {"catalog :: catalog", "organizations :: organizations", "shared :: shared", "specifications :: specifications", "planning :: planning", "technology :: technology"}
+        allowedDependencies = {"catalog :: catalog", "organizations :: organizations", "shared :: shared", "specifications :: specifications", "planning :: planning", "technology :: technology", "directories :: directories"}
 )
 package com.hydroyura.forgeflow.web;
