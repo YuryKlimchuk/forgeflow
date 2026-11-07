@@ -27,9 +27,13 @@
   ],
   "users": [
     {
+      "id": "00000000-0000-0000-0000-000000000010",
       "username": "demo-user",
       "enabled": true,
       "emailVerified": true,
+      "email": "demo@forgeflow.local",
+      "firstName": "Демо",
+      "lastName": "Пользователь",
       "credentials": [
         {
           "type": "password",

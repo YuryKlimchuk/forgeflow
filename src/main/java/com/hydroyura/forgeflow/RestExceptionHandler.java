@@ -11,6 +11,10 @@ import com.hydroyura.forgeflow.catalog.application.DuplicateVzkNumberException;
 import com.hydroyura.forgeflow.catalog.application.PartNotFoundException;
 import com.hydroyura.forgeflow.catalog.application.StandartNotFoundException;
 import com.hydroyura.forgeflow.catalog.application.VzkNotFoundException;
+import com.hydroyura.forgeflow.directories.domain.material.DuplicateMaterialNumberException;
+import com.hydroyura.forgeflow.directories.domain.material.MaterialNotFoundException;
+import com.hydroyura.forgeflow.directories.domain.sortament.DuplicateSortamentNumberException;
+import com.hydroyura.forgeflow.directories.domain.sortament.SortamentNotFoundException;
 import com.hydroyura.forgeflow.organizations.application.OrganizationAccessDeniedException;
 import com.hydroyura.forgeflow.organizations.application.OrganizationNotFoundException;
 import com.hydroyura.forgeflow.organizations.application.OrganizationsException;
@@ -32,6 +36,8 @@ import com.hydroyura.forgeflow.technology.domain.DuplicateTechnologyProcessNumbe
 import com.hydroyura.forgeflow.technology.domain.InvalidDefaultProcessStateException;
 import com.hydroyura.forgeflow.technology.domain.OperationNotFoundException;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessNotFoundException;
+import com.hydroyura.forgeflow.technology.domain.equipment.DuplicateEquipmentNumberException;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentNotFoundException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -166,5 +172,29 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleInvalidDefaultProcessState(InvalidDefaultProcessStateException e) {
         return Map.of("error", "invalid_state", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({MaterialNotFoundException.class, SortamentNotFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleDirectoriesNotFound(RuntimeException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({DuplicateMaterialNumberException.class, DuplicateSortamentNumberException.class})
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleDirectoriesDuplicate(RuntimeException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(EquipmentNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleEquipmentNotFound(EquipmentNotFoundException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateEquipmentNumberException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleEquipmentDuplicate(DuplicateEquipmentNumberException e) {
+        return Map.of("error", "duplicate", "message", String.valueOf(e.getMessage()));
     }
 }

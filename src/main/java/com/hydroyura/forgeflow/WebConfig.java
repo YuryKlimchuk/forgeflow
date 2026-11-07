@@ -30,6 +30,16 @@ import com.hydroyura.forgeflow.catalog.infrastructure.persistence.JpaVzkReposito
 import com.hydroyura.forgeflow.catalog.infrastructure.persistence.PartJpaRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.persistence.StandartJpaRepository;
 import com.hydroyura.forgeflow.catalog.infrastructure.persistence.VzkJpaRepository;
+import com.hydroyura.forgeflow.directories.application.MaterialApplicationService;
+import com.hydroyura.forgeflow.directories.application.MaterialMapper;
+import com.hydroyura.forgeflow.directories.application.SortamentApplicationService;
+import com.hydroyura.forgeflow.directories.application.SortamentMapper;
+import com.hydroyura.forgeflow.directories.domain.material.MaterialRepository;
+import com.hydroyura.forgeflow.directories.domain.sortament.SortamentRepository;
+import com.hydroyura.forgeflow.directories.infrastructure.persistence.JpaMaterialRepository;
+import com.hydroyura.forgeflow.directories.infrastructure.persistence.JpaSortamentRepository;
+import com.hydroyura.forgeflow.directories.infrastructure.persistence.MaterialJpaRepository;
+import com.hydroyura.forgeflow.directories.infrastructure.persistence.SortamentJpaRepository;
 import com.hydroyura.forgeflow.organizations.api.OrganizationService;
 import com.hydroyura.forgeflow.organizations.api.OrganizationSettingsProvider;
 import com.hydroyura.forgeflow.organizations.application.MembershipCoordinator;
@@ -65,11 +75,17 @@ import com.hydroyura.forgeflow.specifications.infrastructure.persistence.JpaSpec
 import com.hydroyura.forgeflow.specifications.infrastructure.persistence.JpaSubstitutionRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.persistence.SpecificationRowJpaRepository;
 import com.hydroyura.forgeflow.specifications.infrastructure.persistence.SubstitutionJpaRepository;
+import com.hydroyura.forgeflow.technology.api.EquipmentService;
 import com.hydroyura.forgeflow.technology.api.TechnologyService;
+import com.hydroyura.forgeflow.technology.application.EquipmentApplicationService;
+import com.hydroyura.forgeflow.technology.application.EquipmentMapper;
 import com.hydroyura.forgeflow.technology.application.TechnologyApplicationService;
 import com.hydroyura.forgeflow.technology.application.TechnologyMapper;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessRepository;
 import com.hydroyura.forgeflow.technology.domain.TechnologyProcessService;
+import com.hydroyura.forgeflow.technology.domain.equipment.EquipmentRepository;
+import com.hydroyura.forgeflow.technology.infrastructure.persistence.EquipmentJpaRepository;
+import com.hydroyura.forgeflow.technology.infrastructure.persistence.JpaEquipmentRepository;
 import com.hydroyura.forgeflow.technology.infrastructure.persistence.JpaTechnologyProcessRepository;
 import com.hydroyura.forgeflow.technology.infrastructure.persistence.TechnologyProcessJpaRepository;
 import com.hydroyura.forgeflow.technology.infrastructure.persistence.TechnologyProcessOperationJpaRepository;
@@ -329,8 +345,18 @@ public class WebConfig {
     }
 
     @Bean
+    public EquipmentRepository equipmentRepository(EquipmentJpaRepository repository) {
+        return new JpaEquipmentRepository(repository);
+    }
+
+    @Bean
     public TechnologyMapper technologyMapper() {
         return new TechnologyMapper();
+    }
+
+    @Bean
+    public EquipmentMapper equipmentMapper() {
+        return new EquipmentMapper();
     }
 
     @Bean
@@ -345,11 +371,61 @@ public class WebConfig {
             TechnologyProcessService technologyProcessService,
             OrganizationContext organizationContext,
             PartService partService,
+            EquipmentRepository equipmentRepository,
             TechnologyMapper technologyMapper,
             java.time.Clock systemClock) {
         return new TechnologyApplicationService(
                 technologyProcessRepository, technologyProcessService, organizationContext,
-                partService, technologyMapper, systemClock);
+                partService, equipmentRepository, technologyMapper, systemClock);
+    }
+
+    @Bean
+    public EquipmentApplicationService equipmentService(
+            EquipmentRepository equipmentRepository,
+            OrganizationContext organizationContext,
+            EquipmentMapper equipmentMapper,
+            java.time.Clock systemClock) {
+        return new EquipmentApplicationService(equipmentRepository, organizationContext, equipmentMapper, systemClock);
+    }
+
+    // --- Directories ---
+
+    @Bean
+    public MaterialRepository materialRepository(MaterialJpaRepository repository) {
+        return new JpaMaterialRepository(repository);
+    }
+
+    @Bean
+    public SortamentRepository sortamentRepository(SortamentJpaRepository repository) {
+        return new JpaSortamentRepository(repository);
+    }
+
+    @Bean
+    public MaterialMapper materialMapper() {
+        return new MaterialMapper();
+    }
+
+    @Bean
+    public SortamentMapper sortamentMapper() {
+        return new SortamentMapper();
+    }
+
+    @Bean
+    public MaterialApplicationService materialService(
+            MaterialRepository materialRepository,
+            OrganizationContext organizationContext,
+            MaterialMapper materialMapper,
+            java.time.Clock systemClock) {
+        return new MaterialApplicationService(materialRepository, organizationContext, materialMapper, systemClock);
+    }
+
+    @Bean
+    public SortamentApplicationService sortamentService(
+            SortamentRepository sortamentRepository,
+            OrganizationContext organizationContext,
+            SortamentMapper sortamentMapper,
+            java.time.Clock systemClock) {
+        return new SortamentApplicationService(sortamentRepository, organizationContext, sortamentMapper, systemClock);
     }
 
     // --- Web ---
