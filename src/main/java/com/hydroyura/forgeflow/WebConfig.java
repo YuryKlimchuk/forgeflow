@@ -57,10 +57,20 @@ import com.hydroyura.forgeflow.organizations.infrastructure.persistence.Organiza
 import com.hydroyura.forgeflow.organizations.infrastructure.persistence.OwnerJpaRepository;
 import com.hydroyura.forgeflow.planning.application.PlanApplicationService;
 import com.hydroyura.forgeflow.planning.application.PlanMapper;
+import com.hydroyura.forgeflow.planning.application.CatalogRequirementSource;
+import com.hydroyura.forgeflow.planning.application.RequirementCalculationApplicationService;
+import com.hydroyura.forgeflow.planning.application.RequirementCalculationMapper;
 import com.hydroyura.forgeflow.planning.domain.PlanRepository;
+import com.hydroyura.forgeflow.planning.domain.RequirementCalculationRepository;
+import com.hydroyura.forgeflow.planning.domain.RequirementCalculator;
+import com.hydroyura.forgeflow.planning.domain.RequirementSource;
 import com.hydroyura.forgeflow.planning.infrastructure.persistence.JpaPlanRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.JpaRequirementCalculationRepository;
 import com.hydroyura.forgeflow.planning.infrastructure.persistence.PlanItemJpaRepository;
 import com.hydroyura.forgeflow.planning.infrastructure.persistence.PlanJpaRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.RequirementCalculationItemJpaRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.RequirementCalculationItemSourceJpaRepository;
+import com.hydroyura.forgeflow.planning.infrastructure.persistence.RequirementCalculationJpaRepository;
 import com.hydroyura.forgeflow.security.api.AuthenticatedUserProvider;
 import com.hydroyura.forgeflow.security.application.OrganizationContextResolver;
 import com.hydroyura.forgeflow.security.infrastructure.OrganizationContextLifecycle;
@@ -91,6 +101,7 @@ import com.hydroyura.forgeflow.technology.infrastructure.persistence.TechnologyP
 import com.hydroyura.forgeflow.technology.infrastructure.persistence.TechnologyProcessOperationJpaRepository;
 import com.hydroyura.forgeflow.web.AssemblyController;
 import com.hydroyura.forgeflow.web.BuyController;
+import com.hydroyura.forgeflow.web.RequirementCalculationController;
 import com.hydroyura.forgeflow.web.StandartController;
 import com.hydroyura.forgeflow.web.VzkController;
 import org.springframework.context.annotation.Bean;
@@ -335,6 +346,50 @@ public class WebConfig {
                 planRepository, organizationContext, assemblyService, specificationService, planMapper);
     }
 
+    @Bean
+    public RequirementCalculationRepository requirementCalculationRepository(
+            RequirementCalculationJpaRepository repository,
+            RequirementCalculationItemJpaRepository itemRepository,
+            RequirementCalculationItemSourceJpaRepository sourceRepository) {
+        return new JpaRequirementCalculationRepository(repository, itemRepository, sourceRepository);
+    }
+
+    @Bean
+    public RequirementCalculationMapper requirementCalculationMapper() {
+        return new RequirementCalculationMapper();
+    }
+
+    @Bean
+    public RequirementCalculator requirementCalculator() {
+        return new RequirementCalculator();
+    }
+
+    @Bean
+    public RequirementSource requirementSource(
+            SpecificationService specificationService,
+            AssemblyService assemblyService,
+            PartService partService,
+            BuyService buyService,
+            StandartService standartService,
+            VzkService vzkService) {
+        return new CatalogRequirementSource(
+                specificationService, assemblyService, partService, buyService, standartService, vzkService);
+    }
+
+    @Bean
+    public RequirementCalculationApplicationService requirementCalculationService(
+            RequirementCalculationRepository requirementCalculationRepository,
+            PlanRepository planRepository,
+            OrganizationContext organizationContext,
+            RequirementCalculator requirementCalculator,
+            RequirementSource requirementSource,
+            java.time.Clock systemClock,
+            RequirementCalculationMapper requirementCalculationMapper) {
+        return new RequirementCalculationApplicationService(
+                requirementCalculationRepository, planRepository, organizationContext,
+                requirementCalculator, requirementSource, systemClock, requirementCalculationMapper);
+    }
+
     // --- Technology ---
 
     @Bean
@@ -448,6 +503,12 @@ public class WebConfig {
     @Bean
     public VzkController vzkController(VzkService vzkService) {
         return new VzkController(vzkService);
+    }
+
+    @Bean
+    public RequirementCalculationController requirementCalculationController(
+            com.hydroyura.forgeflow.planning.api.RequirementCalculationService requirementCalculationService) {
+        return new RequirementCalculationController(requirementCalculationService);
     }
 
     @Bean

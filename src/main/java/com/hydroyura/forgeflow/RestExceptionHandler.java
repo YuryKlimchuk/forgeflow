@@ -24,6 +24,11 @@ import com.hydroyura.forgeflow.planning.domain.DuplicatePlanNameException;
 import com.hydroyura.forgeflow.planning.domain.PlanItemNotFoundException;
 import com.hydroyura.forgeflow.planning.domain.PlanNotFoundException;
 import com.hydroyura.forgeflow.planning.domain.PlansException;
+import com.hydroyura.forgeflow.planning.domain.RequirementCalculationNotFoundException;
+import com.hydroyura.forgeflow.planning.domain.RequirementCycleException;
+import com.hydroyura.forgeflow.planning.domain.RequirementQuantityOverflowException;
+import com.hydroyura.forgeflow.planning.domain.RequirementSourceItemNotFoundException;
+import com.hydroyura.forgeflow.planning.domain.SpecificationItemNotFoundException;
 import com.hydroyura.forgeflow.specifications.domain.BomCycleException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateItemException;
 import com.hydroyura.forgeflow.specifications.domain.DuplicateSubstituteException;
@@ -148,6 +153,37 @@ public class RestExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handlePlanNotFound(PlansException e) {
         return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler({
+            RequirementCalculationNotFoundException.class,
+            RequirementSourceItemNotFoundException.class
+    })
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleRequirementNotFound(PlansException e) {
+        return Map.of("error", "not_found", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(SpecificationItemNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleSpecificationItemNotFound(SpecificationItemNotFoundException e) {
+        return Map.of(
+                "error", "specification_item_not_found",
+                "message", String.valueOf(e.getMessage()),
+                "itemType", String.valueOf(e.item().type()),
+                "itemId", String.valueOf(e.item().id()));
+    }
+
+    @ExceptionHandler(RequirementCycleException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleRequirementCycle(RequirementCycleException e) {
+        return Map.of("error", "bom_cycle", "message", String.valueOf(e.getMessage()));
+    }
+
+    @ExceptionHandler(RequirementQuantityOverflowException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleRequirementQuantityOverflow(RequirementQuantityOverflowException e) {
+        return Map.of("error", "quantity_overflow", "message", String.valueOf(e.getMessage()));
     }
 
     @ExceptionHandler({DuplicatePlanNameException.class, DuplicatePlanItemException.class})
