@@ -12,6 +12,19 @@ function jsonResponse(status: number, body: unknown): Response {
   } as Response;
 }
 
+function mockFetch(handlers: Record<string, Response>) {
+  const spy = vi.spyOn(globalThis, "fetch");
+  spy.mockImplementation((input, init) => {
+    const url = typeof input === "string" ? input : String(input);
+    const method = init?.method ?? "GET";
+    const handler = handlers[`${method} ${url}`];
+    return Promise.resolve(
+      handler ?? jsonResponse(404, { error: "not_found", message: "not found" }),
+    );
+  });
+  return spy;
+}
+
 const ENTRY = {
   id: { value: "1" },
   number: "P-1",
@@ -262,5 +275,105 @@ describe("App", () => {
 
     expect(await screen.findByText("Ничего не найдено.")).toBeInTheDocument();
     expect(screen.queryByText("P-100")).not.toBeInTheDocument();
+  });
+
+  it("отображает кнопки всех четырёх разделов", () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
+
+    render(<App />);
+
+    for (const label of ["Каталог", "Справочники", "Технология", "Планы"]) {
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it("переход в «Справочники» загружает /api/v1/materials", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/v1/parts": jsonResponse(200, []),
+      "GET /api/v1/materials": jsonResponse(200, []),
+      "GET /api/v1/sortaments": jsonResponse(200, []),
+    });
+
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Справочники" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/materials"));
+    expect(screen.getByRole("button", { name: "Материалы" })).toHaveClass("tab-active");
+  });
+
+  it("переход в «Технология»/«Оборудование» загружает /api/v1/equipment", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/v1/parts": jsonResponse(200, []),
+      "GET /api/v1/equipment": jsonResponse(200, []),
+      "GET /api/v1/technology-processes": jsonResponse(200, []),
+    });
+
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Технология" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/equipment"));
+    expect(screen.getByRole("button", { name: "Оборудование" })).toHaveClass("tab-active");
+  });
+
+  it("вкладка «Техпроцессы» загружает /api/v1/technology-processes", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/v1/parts": jsonResponse(200, []),
+      "GET /api/v1/equipment": jsonResponse(200, []),
+      "GET /api/v1/technology-processes": jsonResponse(200, []),
+    });
+
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Технология" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/equipment"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Техпроцессы" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/technology-processes"));
+  });
+
+  it("переход в «Справочники» не вызывает запросы технологии", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/v1/parts": jsonResponse(200, []),
+      "GET /api/v1/materials": jsonResponse(200, []),
+      "GET /api/v1/sortaments": jsonResponse(200, []),
+    });
+
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Справочники" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/materials"));
+
+    const urls = fetchMock.mock.calls.map(([input]) =>
+      typeof input === "string" ? input : String(input),
+    );
+    expect(urls).not.toContain("/api/v1/equipment");
+    expect(urls).not.toContain("/api/v1/technology-processes");
+  });
+
+  it("переход в «Технология» не вызывает запросы справочников", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/v1/parts": jsonResponse(200, []),
+      "GET /api/v1/equipment": jsonResponse(200, []),
+      "GET /api/v1/technology-processes": jsonResponse(200, []),
+    });
+
+    render(<App />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/parts"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Технология" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/v1/equipment"));
+
+    const urls = fetchMock.mock.calls.map(([input]) =>
+      typeof input === "string" ? input : String(input),
+    );
+    expect(urls).not.toContain("/api/v1/materials");
+    expect(urls).not.toContain("/api/v1/sortaments");
   });
 });

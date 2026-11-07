@@ -19,6 +19,83 @@ export interface CreateCatalogEntryRequest {
   name: string;
 }
 
+export type StandardType = "GOST" | "DIN" | "ISO" | "OTHER";
+
+export interface DirectoryEntry {
+  id: { value: string };
+  number: string;
+  name: string;
+  standardType: StandardType;
+  standard: string;
+  unit: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDirectoryRequest {
+  number: string;
+  name: string;
+  standardType: StandardType;
+  standard: string;
+  unit: string;
+}
+
+export interface UpdateDirectoryRequest {
+  name: string;
+  standardType: StandardType;
+  standard: string;
+  unit: string;
+}
+
+export interface EquipmentEntry {
+  id: { value: string };
+  number: string;
+  name: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEquipmentRequest {
+  number: string;
+  name: string;
+  type: string;
+}
+
+export interface UpdateEquipmentRequest {
+  name: string;
+  type: string;
+}
+
+export interface OperationView {
+  number: number;
+  name: string;
+  equipmentId: { value: string } | null;
+}
+
+export interface TechnologyProcessView {
+  id: { value: string };
+  number: string;
+  name: string;
+  partId: { value: string };
+  defaultProcess: boolean;
+  createdAt: string;
+  updatedAt: string;
+  operations: OperationView[];
+}
+
+export interface CreateTechnologyProcessRequest {
+  number: string;
+  name: string;
+  partId: { value: string };
+}
+
+export interface AddOperationRequest {
+  number: number;
+  name: string;
+  equipmentId: { value: string } | null;
+}
+
 export interface ApiErrorBody {
   error: string;
   message: string;
@@ -46,6 +123,31 @@ export const CATALOG_TYPES: CatalogTypeConfig[] = [
   { key: "standarts", label: "Стандартные", endpoint: "/api/v1/standarts" },
   { key: "vzks", label: "ВЗК", endpoint: "/api/v1/vzks" },
 ];
+
+/**
+ * Справочники материалов и сортаментов структурно идентичны (A10/D2) и
+ * параметризуются одним конфигом: вкладка отправляет запросы на собственный
+ * endpoint, а список/создание/деталь/редактирование/удаление используют общий
+ * клиент `directoriesApi`.
+ */
+export const DIRECTORY_TYPES: CatalogTypeConfig[] = [
+  { key: "materials", label: "Материалы", endpoint: "/api/v1/materials" },
+  { key: "sortaments", label: "Сортаменты", endpoint: "/api/v1/sortaments" },
+];
+
+export function standardTypeLabel(type: StandardType): string {
+  switch (type) {
+    case "GOST":
+      return "ГОСТ";
+    case "DIN":
+      return "DIN";
+    case "ISO":
+      return "ISO";
+    case "OTHER":
+      return "Другое";
+  }
+  return type;
+}
 
 async function toJsonOrThrow<T>(response: Response): Promise<T> {
   if (response.ok) {
@@ -267,6 +369,144 @@ export const catalogApi = {
   },
 };
 
+export const directoriesApi = {
+  async list(endpoint: string): Promise<DirectoryEntry[]> {
+    return toJsonOrThrow<DirectoryEntry[]>(await authFetch(endpoint));
+  },
+
+  async get(endpoint: string, id: string): Promise<DirectoryEntry> {
+    return toJsonOrThrow<DirectoryEntry>(await authFetch(`${endpoint}/${id}`));
+  },
+
+  async create(endpoint: string, request: CreateDirectoryRequest): Promise<DirectoryEntry> {
+    return toJsonOrThrow<DirectoryEntry>(
+      await authFetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async update(endpoint: string, id: string, request: UpdateDirectoryRequest): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`${endpoint}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async remove(endpoint: string, id: string): Promise<void> {
+    return toJsonOrThrow<void>(await authFetch(`${endpoint}/${id}`, { method: "DELETE" }));
+  },
+};
+
+export const equipmentApi = {
+  async list(): Promise<EquipmentEntry[]> {
+    return toJsonOrThrow<EquipmentEntry[]>(await authFetch("/api/v1/equipment"));
+  },
+
+  async get(id: string): Promise<EquipmentEntry> {
+    return toJsonOrThrow<EquipmentEntry>(await authFetch(`/api/v1/equipment/${id}`));
+  },
+
+  async create(request: CreateEquipmentRequest): Promise<EquipmentEntry> {
+    return toJsonOrThrow<EquipmentEntry>(
+      await authFetch("/api/v1/equipment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async update(id: string, request: UpdateEquipmentRequest): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`/api/v1/equipment/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async remove(id: string): Promise<void> {
+    return toJsonOrThrow<void>(await authFetch(`/api/v1/equipment/${id}`, { method: "DELETE" }));
+  },
+};
+
+export const technologyApi = {
+  async list(): Promise<TechnologyProcessView[]> {
+    return toJsonOrThrow<TechnologyProcessView[]>(
+      await authFetch("/api/v1/technology-processes"),
+    );
+  },
+
+  async get(id: string): Promise<TechnologyProcessView> {
+    return toJsonOrThrow<TechnologyProcessView>(
+      await authFetch(`/api/v1/technology-processes/${id}`),
+    );
+  },
+
+  async create(request: CreateTechnologyProcessRequest): Promise<TechnologyProcessView> {
+    return toJsonOrThrow<TechnologyProcessView>(
+      await authFetch("/api/v1/technology-processes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async rename(id: string, name: string): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`/api/v1/technology-processes/${id}/name`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      }),
+    );
+  },
+
+  async remove(id: string): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`/api/v1/technology-processes/${id}`, { method: "DELETE" }),
+    );
+  },
+
+  async addOperation(id: string, request: AddOperationRequest): Promise<OperationView> {
+    return toJsonOrThrow<OperationView>(
+      await authFetch(`/api/v1/technology-processes/${id}/operations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }),
+    );
+  },
+
+  async removeOperation(id: string, number: number): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`/api/v1/technology-processes/${id}/operations/${number}`, {
+        method: "DELETE",
+      }),
+    );
+  },
+
+  async markDefault(id: string): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`/api/v1/technology-processes/${id}/default`, { method: "PUT" }),
+    );
+  },
+
+  async unmarkDefault(id: string): Promise<void> {
+    return toJsonOrThrow<void>(
+      await authFetch(`/api/v1/technology-processes/${id}/default`, { method: "DELETE" }),
+    );
+  },
+};
+
 export const planningApi = {
   async create(request: CreatePlanRequest): Promise<PlanView> {
     return toJsonOrThrow<PlanView>(
@@ -372,6 +612,40 @@ export function humanizePlanError(error: unknown): string {
         return "Некорректный запрос";
       case "bom_cycle":
         return "В спецификации обнаружен цикл";
+      default:
+        return error.message;
+    }
+  }
+  return "Что-то пошло не так";
+}
+
+export function humanizeDirectoriesError(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    switch (error.code) {
+      case "duplicate":
+        return "Номер уже занят";
+      case "not_found":
+        return "Запись не найдена";
+      case "bad_request":
+        return "Некорректный запрос";
+      default:
+        return error.message;
+    }
+  }
+  return "Что-то пошло не так";
+}
+
+export function humanizeTechnologyError(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    switch (error.code) {
+      case "duplicate":
+        return "Номер уже занят";
+      case "not_found":
+        return "Запись не найдена";
+      case "bad_request":
+        return "Некорректный запрос";
+      case "invalid_state":
+        return "Нельзя снять признак „по умолчанию“ с единственного техпроцесса детали";
       default:
         return error.message;
     }

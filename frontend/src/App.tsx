@@ -12,11 +12,20 @@ import CreateCatalogEntryForm from "./CreateCatalogEntryForm";
 import SpecificationDetail from "./SpecificationDetail";
 import PlanList from "./PlanList";
 import PlanDetail from "./PlanDetail";
+import DirectoriesSection from "./DirectoriesSection";
+import TechnologySection from "./TechnologySection";
 import { login, logout, isAuthenticated } from "./auth";
 import "./App.css";
 
 type Status = "loading" | "ready" | "error";
-type View = "list" | "catalog-detail" | "spec-detail" | "plans" | "plan-detail";
+type View =
+  | "list"
+  | "catalog-detail"
+  | "spec-detail"
+  | "plans"
+  | "plan-detail"
+  | "directories"
+  | "technology";
 
 export default function App() {
   const [activeKey, setActiveKey] = useState(CATALOG_TYPES[0].key);
@@ -107,6 +116,12 @@ export default function App() {
           <button onClick={() => { setView("list"); setSelectedEntry(null); setSelectedPlanId(null); }}>
             Каталог
           </button>
+          <button onClick={() => { setView("directories"); }}>
+            Справочники
+          </button>
+          <button onClick={() => { setView("technology"); }}>
+            Технология
+          </button>
           <button onClick={() => { setView("plans"); setSelectedPlanId(null); }}>
             Планы
           </button>
@@ -192,6 +207,10 @@ export default function App() {
             onBack={() => setView("plans")}
           />
         )}
+
+        {view === "directories" && <DirectoriesSection />}
+
+        {view === "technology" && <TechnologySection />}
       </main>
     </div>
   );

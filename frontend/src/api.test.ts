@@ -2,10 +2,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiClientError,
   CATALOG_TYPES,
+  DIRECTORY_TYPES,
   catalogApi,
+  directoriesApi,
+  equipmentApi,
+  humanizeDirectoriesError,
   humanizeSpecificationError,
+  humanizeTechnologyError,
   planningApi,
   specificationApi,
+  standardTypeLabel,
+  technologyApi,
   type CatalogItemReference,
 } from "./api";
 
@@ -270,5 +277,407 @@ describe("planningApi", () => {
     await planningApi.flat("plan-1");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/plans/plan-1/flat");
+  });
+});
+
+const DIRECTORY_ENTRY = {
+  id: { value: "m-1" },
+  number: "М-0001",
+  name: "Сталь",
+  standardType: "GOST",
+  standard: "ГОСТ 1050-88",
+  unit: "кг",
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
+
+describe("directoriesApi", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("DIRECTORY_TYPES содержит материалы и сортаменты в правильном порядке", () => {
+    expect(DIRECTORY_TYPES.map((type) => type.key)).toEqual(["materials", "sortaments"]);
+    expect(DIRECTORY_TYPES.map((type) => type.label)).toEqual(["Материалы", "Сортаменты"]);
+    expect(DIRECTORY_TYPES.map((type) => type.endpoint)).toEqual([
+      "/api/v1/materials",
+      "/api/v1/sortaments",
+    ]);
+  });
+
+  it.each(DIRECTORY_TYPES)("list отправляет GET на $endpoint", async ({ endpoint }) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, [DIRECTORY_ENTRY]),
+    );
+
+    const result = await directoriesApi.list(endpoint);
+
+    expect(fetchMock).toHaveBeenCalledWith(endpoint);
+    expect(result).toEqual([DIRECTORY_ENTRY]);
+  });
+
+  it.each(DIRECTORY_TYPES)("get отправляет GET на $endpoint/{id}", async ({ endpoint }) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, DIRECTORY_ENTRY),
+    );
+
+    await directoriesApi.get(endpoint, "m-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(`${endpoint}/m-1`);
+  });
+
+  it.each(DIRECTORY_TYPES)("create отправляет POST на $endpoint", async ({ endpoint }) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(201, DIRECTORY_ENTRY),
+    );
+
+    await directoriesApi.create(endpoint, {
+      number: "М-0001",
+      name: "Сталь",
+      standardType: "GOST",
+      standard: "ГОСТ 1050-88",
+      unit: "кг",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      endpoint,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          number: "М-0001",
+          name: "Сталь",
+          standardType: "GOST",
+          standard: "ГОСТ 1050-88",
+          unit: "кг",
+        }),
+      }),
+    );
+  });
+
+  it.each(DIRECTORY_TYPES)("update отправляет PUT на $endpoint/{id} без number", async ({ endpoint }) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await directoriesApi.update(endpoint, "m-1", {
+      name: "Сталь 45",
+      standardType: "DIN",
+      standard: "DIN 123",
+      unit: "шт",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${endpoint}/m-1`,
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          name: "Сталь 45",
+          standardType: "DIN",
+          standard: "DIN 123",
+          unit: "шт",
+        }),
+      }),
+    );
+  });
+
+  it.each(DIRECTORY_TYPES)("remove отправляет DELETE на $endpoint/{id}", async ({ endpoint }) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await directoriesApi.remove(endpoint, "m-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${endpoint}/m-1`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+});
+
+describe("equipmentApi", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const EQUIPMENT = {
+    id: { value: "e-1" },
+    number: "ОБ-0001",
+    name: "Токарный станок",
+    type: "Станок",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
+
+  it("list отправляет GET на /api/v1/equipment", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, [EQUIPMENT]),
+    );
+
+    await equipmentApi.list();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/equipment");
+  });
+
+  it("get отправляет GET на /api/v1/equipment/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, EQUIPMENT),
+    );
+
+    await equipmentApi.get("e-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/equipment/e-1");
+  });
+
+  it("create отправляет POST с телом {number,name,type}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(201, EQUIPMENT),
+    );
+
+    await equipmentApi.create({ number: "ОБ-0001", name: "Токарный станок", type: "Станок" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/equipment",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ number: "ОБ-0001", name: "Токарный станок", type: "Станок" }),
+      }),
+    );
+  });
+
+  it("update отправляет PUT с телом {name,type} без number", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await equipmentApi.update("e-1", { name: "Фрезерный станок", type: "Оборудование" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/equipment/e-1",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ name: "Фрезерный станок", type: "Оборудование" }),
+      }),
+    );
+  });
+
+  it("remove отправляет DELETE на /api/v1/equipment/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await equipmentApi.remove("e-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/equipment/e-1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+});
+
+describe("technologyApi", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const PROCESS = {
+    id: { value: "tp-1" },
+    number: "ТП-0001",
+    name: "Токарная обработка",
+    partId: { value: "p-1" },
+    defaultProcess: false,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    operations: [],
+  };
+
+  it("create отправляет POST с телом {number,name,partId:{value}}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(201, PROCESS));
+
+    await technologyApi.create({
+      number: "ТП-0001",
+      name: "Токарная обработка",
+      partId: { value: "p-1" },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          number: "ТП-0001",
+          name: "Токарная обработка",
+          partId: { value: "p-1" },
+        }),
+      }),
+    );
+  });
+
+  it("list отправляет GET на /api/v1/technology-processes", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, [PROCESS]),
+    );
+
+    await technologyApi.list();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/technology-processes");
+  });
+
+  it("get отправляет GET на /api/v1/technology-processes/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, PROCESS));
+
+    await technologyApi.get("tp-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/technology-processes/tp-1");
+  });
+
+  it("rename отправляет PUT на {id}/name с телом {name}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await technologyApi.rename("tp-1", "Фрезерная обработка");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1/name",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ name: "Фрезерная обработка" }),
+      }),
+    );
+  });
+
+  it("remove отправляет DELETE на /api/v1/technology-processes/{id}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await technologyApi.remove("tp-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("addOperation отправляет POST с equipmentId:{value}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(201, { number: 10, name: "Точение", equipmentId: { value: "e-1" } }),
+    );
+
+    await technologyApi.addOperation("tp-1", {
+      number: 10,
+      name: "Точение",
+      equipmentId: { value: "e-1" },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1/operations",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ number: 10, name: "Точение", equipmentId: { value: "e-1" } }),
+      }),
+    );
+  });
+
+  it("addOperation сериализует number числом и equipmentId:null", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(201, { number: 10, name: "Точение", equipmentId: null }),
+    );
+
+    await technologyApi.addOperation("tp-1", {
+      number: 10,
+      name: "Точение",
+      equipmentId: null,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1/operations",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ number: 10, name: "Точение", equipmentId: null }),
+      }),
+    );
+  });
+
+  it("removeOperation отправляет DELETE на {id}/operations/{number}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await technologyApi.removeOperation("tp-1", 10);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1/operations/10",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("markDefault отправляет PUT на {id}/default", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await technologyApi.markDefault("tp-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1/default",
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+
+  it("unmarkDefault отправляет DELETE на {id}/default", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(204, undefined));
+
+    await technologyApi.unmarkDefault("tp-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/technology-processes/tp-1/default",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+});
+
+describe("void-методы API", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("204 возвращает undefined и не вызывает response.json()", async () => {
+    const json = vi.fn();
+    const response = { ok: true, status: 204, statusText: "", json } as unknown as Response;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+
+    await expect(directoriesApi.update("/api/v1/materials", "m-1", {
+      name: "Сталь",
+      standardType: "GOST",
+      standard: "ГОСТ 1050-88",
+      unit: "кг",
+    })).resolves.toBeUndefined();
+    await expect(directoriesApi.remove("/api/v1/materials", "m-1")).resolves.toBeUndefined();
+    await expect(equipmentApi.update("e-1", { name: "Токарный станок", type: "Станок" }))
+      .resolves.toBeUndefined();
+    await expect(equipmentApi.remove("e-1")).resolves.toBeUndefined();
+    await expect(technologyApi.rename("tp-1", "Новое имя")).resolves.toBeUndefined();
+    await expect(technologyApi.remove("tp-1")).resolves.toBeUndefined();
+    await expect(technologyApi.removeOperation("tp-1", 10)).resolves.toBeUndefined();
+    await expect(technologyApi.markDefault("tp-1")).resolves.toBeUndefined();
+    await expect(technologyApi.unmarkDefault("tp-1")).resolves.toBeUndefined();
+
+    expect(json).not.toHaveBeenCalled();
+  });
+});
+
+describe("humanize-ошибки и подписи стандартов", () => {
+  it("humanizeDirectoriesError отображает коды ошибок", () => {
+    expect(humanizeDirectoriesError(new ApiClientError(409, "duplicate", "x")))
+      .toBe("Номер уже занят");
+    expect(humanizeDirectoriesError(new ApiClientError(404, "not_found", "x")))
+      .toBe("Запись не найдена");
+    expect(humanizeDirectoriesError(new ApiClientError(400, "bad_request", "x")))
+      .toBe("Некорректный запрос");
+    expect(humanizeDirectoriesError(new ApiClientError(500, "unknown", "Сервер упал")))
+      .toBe("Сервер упал");
+  });
+
+  it("humanizeTechnologyError дополнительно отображает invalid_state", () => {
+    expect(humanizeTechnologyError(new ApiClientError(409, "duplicate", "x")))
+      .toBe("Номер уже занят");
+    expect(humanizeTechnologyError(new ApiClientError(404, "not_found", "x")))
+      .toBe("Запись не найдена");
+    expect(humanizeTechnologyError(new ApiClientError(400, "bad_request", "x")))
+      .toBe("Некорректный запрос");
+    expect(humanizeTechnologyError(new ApiClientError(409, "invalid_state", "x")))
+      .toBe("Нельзя снять признак „по умолчанию“ с единственного техпроцесса детали");
+  });
+
+  it("standardTypeLabel отображает русские подписи", () => {
+    expect(standardTypeLabel("GOST")).toBe("ГОСТ");
+    expect(standardTypeLabel("DIN")).toBe("DIN");
+    expect(standardTypeLabel("ISO")).toBe("ISO");
+    expect(standardTypeLabel("OTHER")).toBe("Другое");
   });
 });
