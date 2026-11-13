@@ -8,6 +8,7 @@ import {
   type PlanView,
 } from "./api";
 import { formatPeriod } from "./PlanList";
+import RequirementCalculationsSection from "./RequirementCalculationsSection";
 
 interface Props {
   id: string;
@@ -270,6 +271,8 @@ export default function PlanDetail({ id, onBack }: Props) {
               </table>
             )}
           </div>
+
+          <RequirementCalculationsSection planId={id} assemblies={assemblies} />
         </>
       )}
     </section>

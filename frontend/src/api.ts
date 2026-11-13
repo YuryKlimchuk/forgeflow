@@ -99,6 +99,8 @@ export interface AddOperationRequest {
 export interface ApiErrorBody {
   error: string;
   message: string;
+  itemType?: string;
+  itemId?: string;
 }
 
 export class ApiClientError extends Error {
@@ -106,6 +108,8 @@ export class ApiClientError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly itemType?: string,
+    readonly itemId?: string,
   ) {
     super(message);
   }
@@ -163,7 +167,7 @@ async function toJsonOrThrow<T>(response: Response): Promise<T> {
   } catch {
     // тело не JSON — оставляем statusText
   }
-  throw new ApiClientError(response.status, body.error, body.message);
+  throw new ApiClientError(response.status, body.error, body.message, body.itemType, body.itemId);
 }
 
 async function authFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
@@ -193,6 +197,52 @@ export const CATALOG_ITEM_TYPE_ENDPOINTS: Record<CatalogItemType, string> = {
   STANDART: "/api/v1/standarts",
   VZK: "/api/v1/vzks",
 };
+
+export type RequirementNeedType = "MANUFACTURE" | "PURCHASE";
+
+export interface RequirementItemView {
+  type: CatalogItemType;
+  id: string;
+  number: string;
+  name: string;
+  quantity: number;
+  needType: RequirementNeedType;
+  unit: string;
+  sources: { value: string }[];
+}
+
+export interface RequirementCalculationView {
+  id: { value: string };
+  planId: { value: string };
+  executedAt: string;
+  items: RequirementItemView[];
+}
+
+export function requirementItemTypeLabel(type: CatalogItemType): string {
+  switch (type) {
+    case "PART":
+      return "Деталь";
+    case "ASSEMBLY":
+      return "Сборка";
+    case "BUY":
+      return "Покупной";
+    case "STANDART":
+      return "Стандартный";
+    case "VZK":
+      return "ВЗК";
+  }
+  return type;
+}
+
+export function requirementNeedTypeLabel(needType: RequirementNeedType): string {
+  switch (needType) {
+    case "MANUFACTURE":
+      return "изготовить";
+    case "PURCHASE":
+      return "закупить";
+  }
+  return needType;
+}
 
 export interface CatalogItemReference {
   type: CatalogItemType;
@@ -555,6 +605,24 @@ export const planningApi = {
   async flat(id: string): Promise<FlatBomItem[]> {
     return toJsonOrThrow<FlatBomItem[]>(await authFetch(`/api/v1/plans/${id}/flat`));
   },
+
+  async calculate(planId: string): Promise<RequirementCalculationView> {
+    return toJsonOrThrow<RequirementCalculationView>(
+      await authFetch(`/api/v1/plans/${planId}/calculations`, { method: "POST" }),
+    );
+  },
+
+  async listCalculations(planId: string): Promise<RequirementCalculationView[]> {
+    return toJsonOrThrow<RequirementCalculationView[]>(
+      await authFetch(`/api/v1/plans/${planId}/calculations`),
+    );
+  },
+
+  async getCalculation(planId: string, calculationId: string): Promise<RequirementCalculationView> {
+    return toJsonOrThrow<RequirementCalculationView>(
+      await authFetch(`/api/v1/plans/${planId}/calculations/${calculationId}`),
+    );
+  },
 };
 
 export async function loadCatalogIndex(): Promise<Record<CatalogItemType, CatalogEntry[]>> {
@@ -612,6 +680,26 @@ export function humanizePlanError(error: unknown): string {
         return "Некорректный запрос";
       case "bom_cycle":
         return "В спецификации обнаружен цикл";
+      default:
+        return error.message;
+    }
+  }
+  return "Что-то пошло не так";
+}
+
+export function humanizeRequirementError(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    switch (error.code) {
+      case "not_found":
+        return "Запись не найдена";
+      case "bom_cycle":
+        return "В спецификации обнаружен цикл";
+      case "quantity_overflow":
+        return "Количество позиции превысило допустимое значение";
+      case "specification_item_not_found":
+        return error.itemId
+          ? `В спецификации отсутствует сборка: ${error.itemId}`
+          : "В спецификации отсутствует сборка";
       default:
         return error.message;
     }

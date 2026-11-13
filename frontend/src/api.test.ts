@@ -7,9 +7,12 @@ import {
   directoriesApi,
   equipmentApi,
   humanizeDirectoriesError,
+  humanizeRequirementError,
   humanizeSpecificationError,
   humanizeTechnologyError,
   planningApi,
+  requirementItemTypeLabel,
+  requirementNeedTypeLabel,
   specificationApi,
   standardTypeLabel,
   technologyApi,
@@ -231,6 +234,13 @@ describe("planningApi", () => {
     items: [],
   };
 
+  const CALCULATION = {
+    id: { value: "calc-1" },
+    planId: { value: "plan-1" },
+    executedAt: "2027-12-01T10:00:00Z",
+    items: [],
+  };
+
   it("list отправляет GET на /api/v1/plans", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, []));
 
@@ -277,6 +287,77 @@ describe("planningApi", () => {
     await planningApi.flat("plan-1");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/plans/plan-1/flat");
+  });
+
+  it("calculate отправляет POST на /api/v1/plans/{id}/calculations без тела", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(201, CALCULATION),
+    );
+
+    await planningApi.calculate("plan-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/plans/plan-1/calculations",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.body).toBeUndefined();
+  });
+
+  it("listCalculations отправляет GET на /api/v1/plans/{id}/calculations", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, [CALCULATION]),
+    );
+
+    await planningApi.listCalculations("plan-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/plans/plan-1/calculations");
+  });
+
+  it("getCalculation отправляет GET на /api/v1/plans/{id}/calculations/{calculationId}", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, CALCULATION),
+    );
+
+    await planningApi.getCalculation("plan-1", "calc-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/plans/plan-1/calculations/calc-1",
+    );
+  });
+
+  it("пробрасывает itemType/itemId из тела ошибки в ApiClientError", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(404, {
+        error: "specification_item_not_found",
+        message: "missing",
+        itemType: "ASSEMBLY",
+        itemId: "a-1",
+      }),
+    );
+
+    const error = await planningApi.listCalculations("plan-1").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect((error as ApiClientError).itemType).toBe("ASSEMBLY");
+    expect((error as ApiClientError).itemId).toBe("a-1");
+  });
+
+  it("не-JSON тело ошибки даёт code unknown и statusText", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: "Bad Gateway",
+      json: async () => {
+        throw new Error("not json");
+      },
+    } as unknown as Response);
+
+    const error = await planningApi.listCalculations("plan-1").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect((error as ApiClientError).code).toBe("unknown");
+    expect((error as ApiClientError).message).toBe("Bad Gateway");
   });
 });
 
@@ -679,5 +760,32 @@ describe("humanize-ошибки и подписи стандартов", () => {
     expect(standardTypeLabel("DIN")).toBe("DIN");
     expect(standardTypeLabel("ISO")).toBe("ISO");
     expect(standardTypeLabel("OTHER")).toBe("Другое");
+  });
+
+  it("humanizeRequirementError отображает коды ошибок расчёта", () => {
+    expect(humanizeRequirementError(new ApiClientError(404, "not_found", "x")))
+      .toBe("Запись не найдена");
+    expect(humanizeRequirementError(new ApiClientError(409, "bom_cycle", "x")))
+      .toBe("В спецификации обнаружен цикл");
+    expect(humanizeRequirementError(new ApiClientError(400, "quantity_overflow", "x")))
+      .toBe("Количество позиции превысило допустимое значение");
+    expect(humanizeRequirementError(new ApiClientError(404, "specification_item_not_found", "x")))
+      .toBe("В спецификации отсутствует сборка");
+    expect(humanizeRequirementError(
+      new ApiClientError(404, "specification_item_not_found", "x", "ASSEMBLY", "a-1"),
+    )).toBe("В спецификации отсутствует сборка: a-1");
+    expect(humanizeRequirementError(new ApiClientError(500, "unknown", "Сервер упал")))
+      .toBe("Сервер упал");
+    expect(humanizeRequirementError(new Error("сеть"))).toBe("Что-то пошло не так");
+  });
+
+  it("requirementItemTypeLabel и requirementNeedTypeLabel отображают русские подписи", () => {
+    expect(requirementItemTypeLabel("PART")).toBe("Деталь");
+    expect(requirementItemTypeLabel("ASSEMBLY")).toBe("Сборка");
+    expect(requirementItemTypeLabel("BUY")).toBe("Покупной");
+    expect(requirementItemTypeLabel("STANDART")).toBe("Стандартный");
+    expect(requirementItemTypeLabel("VZK")).toBe("ВЗК");
+    expect(requirementNeedTypeLabel("MANUFACTURE")).toBe("изготовить");
+    expect(requirementNeedTypeLabel("PURCHASE")).toBe("закупить");
   });
 });
